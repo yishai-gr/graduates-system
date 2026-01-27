@@ -1,0 +1,14 @@
+RewriteEngine On
+
+# 1. Allow the specific backend entry point to pass through
+# Note: In the subtree deployment, backend/ is root, so path is /public/index.php
+RewriteCond %{REQUEST_URI} ^/public/index\.php$
+RewriteRule ^ - [L]
+
+# 2. Block any request that does NOT start with /api
+# This protects source code/git files/etc from direct access.
+RewriteCond %{REQUEST_URI} !^/api
+RewriteRule ^ - [F]
+
+# 3. Route /api requests to the backend entry point
+RewriteRule ^api(/.*)?$ public/index.php [L,QSA]
