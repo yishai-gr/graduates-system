@@ -8,4 +8,5 @@ RewriteRule ^ - [F]
 
 # 2. Redirect /api requests to the backend entry point
 # This assumes the backend/public/index.php handles routing based on $_SERVER['REQUEST_URI']
-RewriteRule ^api/ backend/public/index.php [L,QSA]
+# We use ^api so it catches both "/api" and "/api/..."
+RewriteRule ^api(/.*)?$ backend/public/index.php [L,QSA]
