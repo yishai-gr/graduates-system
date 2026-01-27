@@ -1,4 +1,4 @@
-import type { User, PaginatedResponse, FilterParams } from "@/types";
+import type { User, PaginatedResponse, FilterParams } from "@shared/types";
 import { ApiClient } from "./apiClient";
 
 class UsersService {
@@ -41,7 +41,10 @@ class UsersService {
     return ApiClient.post<User>("/users", user);
   }
 
-  async updateUser(id: string, updates: Partial<User>): Promise<User> {
+  async updateUser(
+    id: string,
+    updates: Partial<User> & { password?: string },
+  ): Promise<User> {
     return ApiClient.put<User>(`/users/${id}`, updates);
   }
 

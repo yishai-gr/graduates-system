@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { graduatesService } from "@/services/graduatesService";
-import type { Graduate } from "@/types";
+import type { Graduate } from "@shared/types";
 import { Button } from "@/components/ui/button";
 import { ProfileCompletion } from "@/components/graduates/ProfileCompletion";
 import {
@@ -59,8 +59,6 @@ export default function GraduateViewPage() {
   }
 
   const canEdit = can("update", "graduates", graduate);
-
-  console.log(graduate);
 
   return (
     <div className="max-w-3xl mx-auto py-8 px-4">

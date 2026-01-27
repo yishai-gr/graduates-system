@@ -33,7 +33,7 @@ export default function LoginPage() {
     setError("");
 
     try {
-      await login(email);
+      await login(email, password);
       const origin = (location.state as any)?.from?.pathname || "/";
       navigate(origin, { replace: true });
     } catch (err: any) {
@@ -43,7 +43,7 @@ export default function LoginPage() {
 
   return (
     <div
-      className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900 p-4"
+      className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-background p-4"
       dir="rtl"
     >
       <Card className="w-full max-w-md">

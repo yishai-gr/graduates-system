@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { usePermissions } from "@/hooks/usePermissions";
 import { graduatesService } from "@/services/graduatesService";
-import type { Graduate } from "@/types";
+import type { Graduate } from "@shared/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

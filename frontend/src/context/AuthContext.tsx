@@ -5,7 +5,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { User, AuthResponse } from "@/types";
+import type { User, AuthResponse } from "@shared/types";
 import { authService } from "@/services/authService";
 
 interface AuthContextType {
@@ -13,7 +13,7 @@ interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string) => Promise<void>;
+  login: (email: string, password?: string) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
 }
@@ -48,10 +48,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const login = async (email: string) => {
+  const login = async (email: string, password?: string) => {
     setIsLoading(true);
     try {
-      const response: AuthResponse = await authService.login(email);
+      const response: AuthResponse = await authService.login(email, password);
       setUser(response.user);
       setToken(response.token);
     } finally {

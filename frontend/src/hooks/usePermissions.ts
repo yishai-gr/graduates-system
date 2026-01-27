@@ -9,48 +9,39 @@ export function usePermissions() {
   const can = (action: Action, resource: Resource, data?: any): boolean => {
     if (!user) return false;
 
-    if (user.role === "super_admin") {
-      return true;
+    // Super admin override
+    if (user.role === "super_admin") return true;
+
+    // Construct permission key, e.g., "graduate:read"
+    // Handle singular/plural mismatch if needed. Resource is "graduates" or "users".
+    // PHP keys are "graduate:..." and "user:..." (singular)
+    const resourceMap: Record<string, string> = {
+      graduates: "graduate",
+      users: "user",
+    };
+
+    const resourceKey = resourceMap[resource] || resource;
+    const permissionKey = `${resourceKey}:${action}`;
+
+    // Check if user has the basic permission
+    if (!user.permissions?.includes(permissionKey)) {
+      return false;
     }
 
-    if (user.role === "shiur_manager") {
-      if (resource === "users") {
-        return false; // No access to users management
-      }
-
-      if (resource === "graduates") {
-        if (action === "read") {
-          // Can read all graduates (assigned to them or "orphan" or generally all if defined that way)
-          // Based on specs: "צפייה: בכל הבוגרים המשויכים למחזורים שהוגדרו לו, ובבוגרים ללא מחזור"
-          // However, simpler implementation might just allow read access to the page, and the list itself is filtered by the service/server.
-          // For UI permission (can view the page):
-          return true;
-        }
-
-        if (action === "create") {
-          // Can create new graduate
-          return true;
-        }
-
-        if (action === "update") {
-          // Can update ONLY if graduate belongs to their shiur
-          // data should be the Graduate object
-          if (!data?.shiurYear && !data?.id) return false; // Safety check
-
-          // Spec: "יכול לערוך את כל הבוגרים במחזור שלו"
-          // Also spec: "יכול לשייך בוגר 'יתום'... ואז יהיה לו הרשאת עריכה עליו" (Logic implemented in service usually, but UI button visibility check here)
-          if (!data?.shiurYear) return true; // Allow editing orphan to assign it? Or assuming "Assign" is an edit action.
-
-          return user.shiurs?.includes(data.shiurYear) || false;
-        }
-
-        if (action === "delete") {
-          return false;
-        }
-      }
+    // Role-specific/Data-specific refinements
+    if (
+      user.role === "shiur_manager" &&
+      resource === "graduates" &&
+      action === "update"
+    ) {
+      // Extra check for shiur manager updating graduates: only their shiur or orphans
+      if (!data?.shiurYear && !data?.id) return true; // Allow if creating/unknown? Or strict?
+      // Original logic: "if (!data?.shiurYear) return true;" (Orphan)
+      if (!data?.shiurYear) return true;
+      return user.shiurs?.includes(data.shiurYear) || false;
     }
 
-    return false;
+    return true;
   };
 
   const isSuperAdmin = user?.role === "super_admin";

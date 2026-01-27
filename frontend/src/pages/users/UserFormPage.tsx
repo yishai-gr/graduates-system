@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { usePermissions } from "@/hooks/usePermissions";
 import { usersService } from "@/services/usersService";
-import type { Role } from "@/types";
+import type { Role } from "@shared/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -90,13 +90,20 @@ export default function UserFormPage() {
         shiurs: shiurYears,
       };
 
+      let newId = id;
       if (id) {
         await usersService.updateUser(id, userData);
       } else {
-        await usersService.createUser(userData);
+        const created = await usersService.createUser(userData);
+        newId = created.id;
       }
 
-      navigate("/users");
+      if (id) {
+        navigate("/users");
+      } else {
+        // New user -> Redirect to password setup
+        navigate(`/users/${newId}/password`);
+      }
     } catch (err: any) {
       setError(err.message || "אירעה שגיאה בשמירת הנתונים");
     } finally {
@@ -179,14 +186,12 @@ export default function UserFormPage() {
 
           {role === "shiur_manager" && (
             <div className="grid gap-2 animate-in fade-in duration-300">
-              <Label htmlFor="shiurs">
-                מחזורים (מופרדים בפסיק: 2023, 2024)
-              </Label>
+              <Label htmlFor="shiurs">מחזורים (מופרדים בפסיק: נט, פד)</Label>
               <Input
                 id="shiurs"
                 value={shiurs}
                 onChange={(e) => setShiurs(e.target.value)}
-                placeholder="לדוגמה: 2023, 2024"
+                placeholder="לדוגמה: נט, פד"
               />
             </div>
           )}

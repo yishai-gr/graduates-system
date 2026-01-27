@@ -7,6 +7,8 @@ export interface User {
   email: string;
   role: Role;
   shiurs?: string[]; // For shiur_manager: list of years they manage
+  permissions?: string[]; // List of permission strings
+  passwordChanged?: boolean;
 }
 
 export interface Graduate {

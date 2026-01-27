@@ -1,4 +1,4 @@
-import type { ApiError } from "@/types";
+import type { ApiError } from "@shared/types";
 
 export const DELAY_MS = 500;
 

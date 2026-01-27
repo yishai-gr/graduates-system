@@ -1,4 +1,4 @@
-import type { Graduate, PaginatedResponse, FilterParams } from "@/types";
+import type { Graduate, PaginatedResponse, FilterParams } from "@shared/types";
 import { ApiClient } from "./apiClient";
 
 class GraduatesService {

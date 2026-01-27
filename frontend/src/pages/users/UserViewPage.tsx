@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { usersService } from "@/services/usersService";
-import type { User } from "@/types";
+import type { User } from "@shared/types";
 import { Button } from "@/components/ui/button";
 import {
   IconArrowRight,

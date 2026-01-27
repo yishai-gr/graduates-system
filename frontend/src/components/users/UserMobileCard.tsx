@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import type { User } from "@/types";
+import type { User } from "@shared/types";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,12 +9,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   IconPencil,
   IconTrash,
   IconShieldLock,
   IconUserEdit,
   IconDotsVertical,
   IconEye,
+  IconKey,
 } from "@tabler/icons-react";
 import { motion } from "framer-motion";
 import type { PanInfo } from "framer-motion";
@@ -26,6 +33,7 @@ interface UserMobileCardProps {
   onDelete?: (user: User) => void;
   canEdit: boolean;
   canDelete: boolean;
+  onChangePassword?: (user: User) => void;
 }
 
 export function UserMobileCard({
@@ -35,6 +43,7 @@ export function UserMobileCard({
   onDelete,
   canEdit,
   canDelete,
+  onChangePassword,
 }: UserMobileCardProps) {
   /* Double-tap logic */
   const lastTap = useRef(0);
@@ -94,8 +103,20 @@ export function UserMobileCard({
           <CardHeader className="p-4 py-3">
             <div className="flex justify-between items-center">
               <div>
-                <div className="font-bold text-lg">
+                <div className="font-bold text-lg flex items-center gap-2">
                   {user.firstName} {user.lastName}
+                  {!user.passwordChanged && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>למשתמש זה לא הוגדרה סיסמה</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
                 </div>
                 <div className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
                   {user.role === "shiur_manager" && (
@@ -110,8 +131,8 @@ export function UserMobileCard({
                 <span
                   className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium gap-1 whitespace-nowrap ${
                     user.role === "super_admin"
-                      ? "bg-purple-100 text-purple-800"
-                      : "bg-blue-100 text-blue-800"
+                      ? "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300"
+                      : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
                   }`}
                 >
                   {user.role === "super_admin" ? (
@@ -148,13 +169,28 @@ export function UserMobileCard({
                         <span className="text-xs font-medium">צפייה</span>
                       </DropdownMenuItem>
 
+                      {onChangePassword && (
+                        <DropdownMenuItem
+                          onClick={() => onChangePassword(user)}
+                          className="relative flex flex-col items-center justify-center gap-1 rounded-md bg-blue-50 dark:bg-blue-900/20 p-2  aspect-square focus:bg-blue-100 dark:focus:bg-blue-900/40"
+                        >
+                          {!user.passwordChanged && (
+                            <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+                          )}
+                          <IconKey className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                          <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
+                            סיסמה
+                          </span>
+                        </DropdownMenuItem>
+                      )}
+
                       {canEdit && (
                         <DropdownMenuItem
                           onClick={() => onEdit(user)}
-                          className="flex flex-col items-center justify-center gap-1 rounded-md bg-orange-50 p-2  aspect-square focus:bg-orange-100"
+                          className="flex flex-col items-center justify-center gap-1 rounded-md bg-orange-50 dark:bg-orange-900/20 p-2  aspect-square focus:bg-orange-100 dark:focus:bg-orange-900/40"
                         >
-                          <IconPencil className="h-6 w-6 text-orange-600" />
-                          <span className="text-xs font-medium text-orange-700">
+                          <IconPencil className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+                          <span className="text-xs font-medium text-orange-700 dark:text-orange-300">
                             עריכה
                           </span>
                         </DropdownMenuItem>
@@ -162,7 +198,7 @@ export function UserMobileCard({
 
                       {canDelete && onDelete && (
                         <DropdownMenuItem
-                          className="flex flex-col items-center justify-center gap-1 rounded-md bg-red-50 p-2 aspect-square focus:bg-red-100 text-destructive focus:text-destructive"
+                          className="flex flex-col items-center justify-center gap-1 rounded-md bg-red-50 dark:bg-red-900/20 p-2 aspect-square focus:bg-red-100 dark:focus:bg-red-900/40 text-destructive focus:text-destructive dark:text-red-400 dark:focus:text-red-300"
                           onClick={() => onDelete(user)}
                         >
                           <IconTrash className="h-6 w-6" />

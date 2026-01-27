@@ -8,6 +8,7 @@ import {
   IconSchool,
   IconLogout,
   IconPlus,
+  IconKey,
 } from "@tabler/icons-react";
 
 import { cn } from "@/lib/utils";
@@ -41,7 +42,7 @@ export function AppSidebar({
         <span className="text-lg font-bold">מערכת בוגרים</span>
       </div>
 
-      <div className="border-b p-4 text-center hidden md:block">
+      <div className="border-b p-4 text-center">
         <div className="font-medium">
           {user?.firstName} {user?.lastName}
         </div>
@@ -123,6 +124,19 @@ export function AppSidebar({
       {/* Footer Actions */}
       <div className="border-t p-4 space-y-2">
         <ModeToggle />
+
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start gap-2"
+          onClick={() => {
+            navigate(`/users/${user?.id}/password`);
+            onNavigate?.();
+          }}
+        >
+          <IconKey size={16} />
+          שינוי סיסמה
+        </Button>
 
         <Button
           variant="ghost"

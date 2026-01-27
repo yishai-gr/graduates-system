@@ -1,6 +1,6 @@
 import { Progress } from "@/components/ui/progress";
 import { calculateProfileStatus } from "@/lib/graduateUtils";
-import type { Graduate } from "@/types";
+import type { Graduate } from "@shared/types";
 import {
   Tooltip,
   TooltipContent,

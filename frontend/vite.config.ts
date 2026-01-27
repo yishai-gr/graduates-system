@@ -5,7 +5,7 @@ import { defineConfig } from "vite";
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: "./", // Use relative path to support subfolders (like /test)
+  base: "/graduates-system", // Use relative path to support subfolders (like /test)
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
@@ -29,5 +29,8 @@ export default defineConfig({
         },
       },
     },
+  },
+  server: {
+    host: true,
   },
 });

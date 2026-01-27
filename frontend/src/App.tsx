@@ -18,10 +18,11 @@ const GraduateViewPage = lazy(
 );
 const UserFormPage = lazy(() => import("@/pages/users/UserFormPage"));
 const UserViewPage = lazy(() => import("@/pages/users/UserViewPage"));
+const ChangePasswordPage = lazy(() => import("@/pages/ChangePasswordPage"));
 
 // Loading component
 const PageLoader = () => (
-  <div className="flex h-screen w-full items-center justify-center bg-gray-50">
+  <div className="flex h-screen w-full items-center justify-center bg-gray-50 dark:bg-background">
     <div className="flex flex-col items-center gap-4">
       <IconLoader className="h-10 w-10 animate-spin text-primary" />
       <p className="text-muted-foreground text-lg">טוען...</p>
@@ -43,6 +44,10 @@ function App() {
               <Route path="/users/new" element={<UserFormPage />} />
               <Route path="/users/:id" element={<UserViewPage />} />
               <Route path="/users/:id/edit" element={<UserFormPage />} />
+              <Route
+                path="/users/:id/password"
+                element={<ChangePasswordPage />}
+              />
 
               <Route path="/graduates" element={<GraduatesPage />} />
               <Route path="/graduates/new" element={<GraduateFormPage />} />

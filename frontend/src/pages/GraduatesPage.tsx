@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { graduatesService } from "@/services/graduatesService";
-import type { Graduate } from "@/types";
+import type { Graduate } from "@shared/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DataTable } from "@/components/common/DataTable";
@@ -16,7 +16,22 @@ import {
   IconTrash,
   IconEye,
   IconFilter,
+  IconDotsVertical,
 } from "@tabler/icons-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Card } from "@/components/ui/card";
 
 export default function GraduatesPage() {
   const { can, user, isShiurManager } = usePermissions();
@@ -155,46 +170,92 @@ export default function GraduatesPage() {
         const canDelete = can("delete", "graduates"); // Usually super_admin only
 
         return (
-          <div className="flex justify-end gap-2">
-            {/* Always show View/Edit button - if only view allowed, dialog handles readonly or we can show "Eye" icon */}
-            {/* Requirement: "צפייה, עריכה, מחיקה" */}
-            {/* If can edit, show Pencil. If can only view, show Eye? Or Pencil opens dialog in read mode? 
-                 Let's assume Pencil is for Edit. If cannot edit, maybe show Eye.
-                 For now, simpler: Show Pencil if canEdit.
-             */}
-            {/* View Button - Always visible */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => handleView(g)}
-              title="צפייה"
-            >
-              <IconEye className="h-4 w-4" />
-            </Button>
+          <>
+            {/* Desktop View - Buttons with Tooltips */}
+            <div className="hidden md:flex justify-end gap-2">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleView(g)}
+                    >
+                      <IconEye className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>צפייה</p>
+                  </TooltipContent>
+                </Tooltip>
 
-            {canEdit && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handleEdit(g)}
-                title="עריכה"
-              >
-                <IconPencil className="h-4 w-4" />
-              </Button>
-            )}
+                {canEdit && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEdit(g)}
+                      >
+                        <IconPencil className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>עריכה</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
 
-            {canDelete && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-destructive hover:text-destructive"
-                onClick={() => handleDeleteClick(g)}
-                title="מחיקה"
-              >
-                <IconTrash className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
+                {canDelete && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => handleDeleteClick(g)}
+                      >
+                        <IconTrash className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>מחיקה</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+              </TooltipProvider>
+            </div>
+
+            {/* Mobile View - Dropdown Menu */}
+            <div className="flex md:hidden justify-end">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <IconDotsVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>פעולות</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => handleView(g)}>
+                    <IconEye className="mr-2 h-4 w-4" /> צפייה
+                  </DropdownMenuItem>
+                  {canEdit && (
+                    <DropdownMenuItem onClick={() => handleEdit(g)}>
+                      <IconPencil className="mr-2 h-4 w-4" /> עריכה
+                    </DropdownMenuItem>
+                  )}
+                  {canDelete && (
+                    <DropdownMenuItem
+                      onClick={() => handleDeleteClick(g)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <IconTrash className="mr-2 h-4 w-4" /> מחיקה
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </>
         );
       },
     },
@@ -264,7 +325,15 @@ export default function GraduatesPage() {
         open={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
         title="מחיקת בוגר"
-        description={`האם אתה בטוח שברצונך למחוק את הבוגר ${graduateToDelete?.first_name} ${graduateToDelete?.last_name}? פעולה זו אינה הפיכה.`}
+        description={
+          <>
+            האם אתה בטוח שברצונך למחוק את הבוגר{" "}
+            <strong>
+              {graduateToDelete?.first_name} {graduateToDelete?.last_name}
+            </strong>
+            ? פעולה זו אינה הפיכה.
+          </>
+        }
         onConfirm={handleConfirmDelete}
         variant="destructive"
         confirmText="מחק"

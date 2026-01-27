@@ -31,69 +31,72 @@ $basePath = $scriptDir === '/' ? '' : $scriptDir; // "/backend/public" or "" or 
 // If it does, treat as API. If not, serve Frontend.
 
 if (strpos($uri, '/api/') !== false) {
-    // API Request Handling
-    // Strip everything before /api/ to get internal resource path
-    $apiPath = substr($uri, strpos($uri, '/api/')); 
-    $parts = explode('/', trim($apiPath, '/')); // ["api", "v1", "graduates", ...]
+  // API Request Handling
+  // Strip everything before /api/ to get internal resource path
+  $apiPath = substr($uri, strpos($uri, '/api/'));
+  $parts = explode('/', trim($apiPath, '/')); // ["api", "v1", "graduates", ...]
 
-    if (count($parts) < 2 || $parts[0] !== 'api' || $parts[1] !== 'v1') {
-        header('HTTP/1.1 404 Not Found');
-        echo json_encode(['error' => 'Invalid API version']);
-        exit;
-    }
+  if (count($parts) < 2 || $parts[0] !== 'api' || $parts[1] !== 'v1') {
+    header('HTTP/1.1 404 Not Found');
+    echo json_encode(['error' => 'Invalid API version']);
+    exit;
+  }
 
-    $resource = $parts[2] ?? null;
-    $id = $parts[3] ?? null;
-    $method = $_SERVER['REQUEST_METHOD'];
+  $resource = $parts[2] ?? null;
+  $id = $parts[3] ?? null;
+  $method = $_SERVER['REQUEST_METHOD'];
 
-    // Routing Logic
-    if ($resource === 'auth' && $parts[3] === 'login' && $method === 'POST') {
-      (new \App\Controllers\AuthController())->login();
-    } elseif ($resource === 'auth' && $parts[3] === 'me' && $method === 'GET') {
-      (new \App\Controllers\AuthController())->me();
-    } elseif ($resource === 'users') {
-      \App\Middleware\AuthMiddleware::authenticate();
-      $controller = new \App\Controllers\UserController();
-      if ($method === 'GET') {
-        $id ? $controller->getById($id) : $controller->getAll();
-      } elseif ($method === 'POST') {
-        $controller->create();
-      } elseif ($method === 'PUT' && $id) {
-        $controller->update($id);
-      } elseif ($method === 'DELETE' && $id) {
-        $controller->delete($id);
-      } else {
-        header('HTTP/1.1 405 Method Not Allowed');
-      }
-    } elseif ($resource === 'graduates') {
-      \App\Middleware\AuthMiddleware::authenticate();
-      $controller = new \App\Controllers\GraduatesController();
-      if ($method === 'GET') {
-        $id ? $controller->getById($id) : $controller->getAll();
-      } elseif ($method === 'POST') {
-        $controller->create();
-      } elseif ($method === 'PUT' && $id) {
-        $controller->update($id);
-      } elseif ($method === 'DELETE' && $id) {
-        $controller->delete($id);
-      } else {
-        header('HTTP/1.1 405 Method Not Allowed');
-      }
+  // Routing Logic
+  // API v1 Views
+  if ($resource === 'views' && $parts[3] === 'home' && $method === 'GET') {
+    (new \App\Controllers\ViewsController())->home();
+  } elseif ($resource === 'auth' && $parts[3] === 'login' && $method === 'POST') {
+    (new \App\Controllers\AuthController())->login();
+  } elseif ($resource === 'auth' && $parts[3] === 'me' && $method === 'GET') {
+    (new \App\Controllers\AuthController())->me();
+  } elseif ($resource === 'users') {
+    \App\Middleware\AuthMiddleware::authenticate();
+    $controller = new \App\Controllers\UserController();
+    if ($method === 'GET') {
+      $id ? $controller->getById($id) : $controller->getAll();
+    } elseif ($method === 'POST') {
+      $controller->create();
+    } elseif ($method === 'PUT' && $id) {
+      $controller->update($id);
+    } elseif ($method === 'DELETE' && $id) {
+      $controller->delete($id);
     } else {
-      header('HTTP/1.1 404 Not Found');
-      echo json_encode(['error' => ['message' => 'Endpoint not found']]);
+      header('HTTP/1.1 405 Method Not Allowed');
     }
+  } elseif ($resource === 'graduates') {
+    \App\Middleware\AuthMiddleware::authenticate();
+    $controller = new \App\Controllers\GraduatesController();
+    if ($method === 'GET') {
+      $id ? $controller->getById($id) : $controller->getAll();
+    } elseif ($method === 'POST') {
+      $controller->create();
+    } elseif ($method === 'PUT' && $id) {
+      $controller->update($id);
+    } elseif ($method === 'DELETE' && $id) {
+      $controller->delete($id);
+    } else {
+      header('HTTP/1.1 405 Method Not Allowed');
+    }
+  } else {
+    header('HTTP/1.1 404 Not Found');
+    echo json_encode(['error' => ['message' => 'Endpoint not found']]);
+  }
 } else {
-    // SPA Fallback: Serve frontend/dist/index.html
-    // Adjust path relative to this file: ./index.php -> ../../frontend/dist/index.html
-    $frontendIndex = __DIR__ . '/../../frontend/dist/index.html';
-    
-    if (file_exists($frontendIndex)) {
-        // Serve the file with correct mime type is usually handled by server, but here we output content.
-        header("Content-Type: text/html");
-        readfile($frontendIndex);
-    } else {
-        // If frontend not built or found
-        echo "Backend is running. Frontend build not found at $frontendIndex";
-    }
+  // SPA Fallback: Serve frontend/dist/index.html
+  // Adjust path relative to this file: ./index.php -> ../../frontend/dist/index.html
+  $frontendIndex = __DIR__ . '/../../frontend/dist/index.html';
+
+  if (file_exists($frontendIndex)) {
+    // Serve the file with correct mime type is usually handled by server, but here we output content.
+    header("Content-Type: text/html");
+    readfile($frontendIndex);
+  } else {
+    // If frontend not built or found
+    echo "Backend is running. Frontend build not found at $frontendIndex";
+  }
 }

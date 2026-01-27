@@ -1,0 +1,21 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches: ["master", "main"]
+    paths:
+      - "backend/**"
+      - "shared/**"
+  workflow_dispatch:
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Hostinger Webhook
+        run: |
+          if [ -z "${{ secrets.HOSTINGER_WEBHOOK_URL }}" ]; then
+            echo "HOSTINGER_WEBHOOK_URL is not set"
+            exit 1
+          fi
+          curl -X POST "${{ secrets.HOSTINGER_WEBHOOK_URL }}"

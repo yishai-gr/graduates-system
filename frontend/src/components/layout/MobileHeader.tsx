@@ -15,7 +15,7 @@ export function MobileHeader() {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 flex h-16 w-full items-center justify-center border-b bg-background px-4 md:hidden">
+    <header className="sticky top-0 z-40 flex h-16 w-full items-center justify-center border-b bg-background/50 backdrop-blur-sm px-4 md:hidden">
       <div className="flex h-16 items-center border-b px-6">
         <IconSchool className="ml-2 h-6 w-6 text-primary" />
         <span className="text-lg font-bold">מערכת בוגרים</span>

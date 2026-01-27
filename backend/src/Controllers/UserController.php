@@ -16,7 +16,7 @@ class UserController
 
   public function getAll()
   {
-    $sql = "SELECT id, email, first_name as firstName, last_name as lastName, role, shiurs_managed FROM users ORDER BY first_name ASC";
+    $sql = "SELECT id, email, first_name as firstName, last_name as lastName, role, shiurs_managed, password_changed as passwordChanged FROM users ORDER BY first_name ASC";
     $stmt = $this->db->query($sql);
     $users = $stmt->fetchAll();
 
@@ -46,7 +46,7 @@ class UserController
 
   public function getById($id)
   {
-    $stmt = $this->db->prepare("SELECT id, email, first_name as firstName, last_name as lastName, role, shiurs_managed FROM users WHERE id = ?");
+    $stmt = $this->db->prepare("SELECT id, email, first_name as firstName, last_name as lastName, role, shiurs_managed, password_changed as passwordChanged FROM users WHERE id = ?");
     $stmt->execute([$id]);
     $user = $stmt->fetch();
 
@@ -105,7 +105,8 @@ class UserController
         'firstName' => $firstName,
         'lastName' => $lastName,
         'role' => $role,
-        'shiurs' => $shiurs
+        'shiurs' => $shiurs,
+        'passwordChanged' => false
       ]);
     } catch (\PDOException $e) {
       header('HTTP/1.1 500 Internal Server Error');
@@ -148,11 +149,23 @@ class UserController
       }
     }
 
-    $sql = "UPDATE users SET first_name = ?, last_name = ?, email = ?, role = ?, shiurs_managed = ? WHERE id = ?";
+    $password = $data['password'] ?? null;
+
+    $sql = "UPDATE users SET first_name = ?, last_name = ?, email = ?, role = ?, shiurs_managed = ?";
+    $params = [$firstName, $lastName, $email, $role, $shiurs];
+
+    if ($password) {
+      $sql .= ", password_hash = ?, password_changed = 1";
+      $params[] = password_hash($password, PASSWORD_DEFAULT);
+    }
+
+    $sql .= " WHERE id = ?";
+    $params[] = $id;
+
     $stmt = $this->db->prepare($sql);
 
     try {
-      $stmt->execute([$firstName, $lastName, $email, $role, $shiurs, $id]);
+      $stmt->execute($params);
 
       // Return updated
       echo json_encode([
@@ -161,7 +174,8 @@ class UserController
         'firstName' => $firstName,
         'lastName' => $lastName,
         'role' => $role,
-        'shiurs' => json_decode($shiurs)
+        'shiurs' => json_decode($shiurs),
+        'passwordChanged' => $password ? true : (bool) ($user['password_changed'] ?? false)
       ]);
     } catch (\PDOException $e) {
       header('HTTP/1.1 500 Internal Server Error');

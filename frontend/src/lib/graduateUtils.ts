@@ -1,4 +1,4 @@
-import type { Graduate } from "@/types";
+import type { Graduate } from "@shared/types";
 
 export interface ProfileStatus {
   percentage: number;
@@ -40,17 +40,17 @@ export function calculateProfileStatus(graduate: Graduate): ProfileStatus {
   // Let's ceil it or round it.
   const percentage = Math.min(100, Math.round(score));
 
-  let color = "bg-red-500"; // Default Red
+  let color = "bg-red-500 dark:bg-red-700"; // Default Red
   let label = "חסר מידע קריטי";
 
   if (percentage >= 95) {
-    color = "bg-indigo-500"; // Dark Green / Blue? User said "Dark Green / Blue". Emerald is nice.
+    color = "bg-indigo-500 dark:bg-indigo-600"; // Dark Green / Blue? User said "Dark Green / Blue". Emerald is nice.
     label = "מלא לחלוטין";
   } else if (percentage >= 80) {
-    color = "bg-green-500"; // Green
+    color = "bg-green-500 dark:bg-green-600"; // Green
     label = "נתונים חשובים מלאים";
   } else if (percentage >= 50) {
-    color = "bg-orange-400"; // Orange
+    color = "bg-orange-400 dark:bg-orange-500"; // Orange
     label = "חלקי";
   }
 
