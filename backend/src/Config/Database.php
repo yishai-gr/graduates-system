@@ -2,9 +2,15 @@
 
 namespace App\Config;
 
+require_once __DIR__ . '/../../vendor/autoload.php';
+
 use PDO;
 use PDOException;
 use Dotenv\Dotenv;
+
+// Load Environment Variables
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
+$dotenv->safeLoad();
 
 class Database
 {
