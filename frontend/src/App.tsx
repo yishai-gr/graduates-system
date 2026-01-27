@@ -4,6 +4,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { IconLoader } from "@tabler/icons-react";
 
+
 // Lazy load pages
 const LoginPage = lazy(() => import("@/pages/Login"));
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
