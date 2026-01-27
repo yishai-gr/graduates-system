@@ -1,4 +1,5 @@
 <?php
+// Deployment Trigger: Force Update
 
 // CORS - Robust Handling - Moved to Top
 if (isset($_SERVER['HTTP_ORIGIN'])) {
