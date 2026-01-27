@@ -2,18 +2,22 @@
 // Simple deploy script to be triggered by webhook or manually
 // Security: In production, add a secret token check here!
 
-// 1. Check for secret token (Optional but recommended)
-// $headers = getallheaders();
-// if (!isset($headers['X-Hub-Signature']) && !isset($_GET['token'])) {
-//     http_response_code(403);
-//     die('Forbidden');
-// }
+// 1. Check for secret token
+if (!isset($_GET['token']) || $_GET['token'] !== 'YOUR_SECRET_TOKEN_HERE') {
+  // Note: In production, replace 'YOUR_SECRET_TOKEN_HERE' with a real random string
+  // OR better, set it dynamically from an environment variable or file if possible, 
+  // but for simple hosting, hardcoding a long random string here and matching it in the GitHub Secret is the easiest path.
+  // Ideally, the user will change 'YOUR_SECRET_TOKEN_HERE' to something secure.
+  // For this guide, I will leave it as a placeholder that MUST be changed.
+  http_response_code(403);
+  die('Forbidden: Invalid token');
+}
 
 // 2. Commands
 $commands = [
   'echo $PWD',
   'whoami',
-  'git pull origin master 2>&1', // Adjust branch if needed
+  'git pull 2>&1', // Pulls the current branch from its tracked upstream
   'git status',
 ];
 

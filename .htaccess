@@ -1,0 +1,11 @@
+RewriteEngine On
+
+# 1. Block any request that does NOT start with /api
+# This protects the source code, frontend files, and everything else in the repo
+# from being accessed directly via the Hostinger server.
+RewriteCond %{REQUEST_URI} !^/api
+RewriteRule ^ - [F]
+
+# 2. Redirect /api requests to the backend entry point
+# This assumes the backend/public/index.php handles routing based on $_SERVER['REQUEST_URI']
+RewriteRule ^api/ backend/public/index.php [L,QSA]
