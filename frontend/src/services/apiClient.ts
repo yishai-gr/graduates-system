@@ -1,14 +1,6 @@
 import type { ApiError } from "@shared/types";
 
-const isProd = import.meta.env.PROD;
-const API_URL =
-  import.meta.env.VITE_API_URL ||
-  (isProd
-    ? "https://dodgerblue-bison-854439.hostingersite.com/api/v1"
-    : "http://localhost:8000/api/v1");
-
-console.log("App Environment:", isProd ? "Production" : "Development");
-console.log("API URL:", API_URL);
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
 
 interface RequestOptions extends RequestInit {
   skipAuth?: boolean;
