@@ -31,7 +31,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Card } from "@/components/ui/card";
 
 export default function GraduatesPage() {
   const { can, user, isShiurManager } = usePermissions();
