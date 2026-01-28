@@ -46,7 +46,7 @@ jobs:
         working-directory: ./deployment_artifact/API
         run: |
           # Remove development/git files from backend if any
-          rm -rf .git .gitignore tests
+          rm -rf .git .gitignore tests .htaccess
 
           # Install PHP Dependencies (if composer.json exists and we want to ship vendor)
           # Note: Usually better to run composer install here, but we'll copy existing vendor if checked in or rely on server.
