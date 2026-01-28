@@ -114,6 +114,34 @@ class GraduatesController
       return;
     }
 
+    // Strict Validations
+    if (!empty($data['teudat_zehut'])) {
+      if (!$this->validateIsraeliID($data['teudat_zehut'])) {
+        $this->validationError('teudat_zehut', 'Invalid Israeli ID checksum');
+      }
+    }
+
+    if (!empty($data['email'])) {
+      if (!$this->validateEmail($data['email'])) {
+        $this->validationError('email', 'Invalid email address');
+      }
+    }
+
+    // Phone Normalization & Validation
+    if (!empty($data['phone'])) {
+      $data['phone'] = $this->normalizePhone($data['phone']);
+      if (!$this->validatePhone($data['phone'])) {
+        $this->validationError('phone', 'Phone number must be 9 or 10 digits');
+      }
+    }
+
+    if (!empty($data['home_phone'])) {
+      $data['home_phone'] = $this->normalizePhone($data['home_phone']);
+      if (!$this->validatePhone($data['home_phone'])) {
+        $this->validationError('home_phone', 'Phone number must be 9 or 10 digits');
+      }
+    }
+
     $fields = [];
     $placeholders = [];
     $params = [];
@@ -128,10 +156,18 @@ class GraduatesController
 
     $sql = "INSERT INTO graduates (" . implode(', ', $fields) . ") VALUES (" . implode(', ', $placeholders) . ")";
     $stmt = $this->db->prepare($sql);
-    $stmt->execute($params);
-
-    $id = $this->db->lastInsertId();
-    $this->getById($id); // Return the created object
+    try {
+      $stmt->execute($params);
+      $id = $this->db->lastInsertId();
+      $this->getById($id); // Return the created object
+    } catch (\PDOException $e) {
+      // Check for duplicate entry on unique keys if any (e.g. teudat_zehut or email if unique)
+      if ($e->errorInfo[1] == 1062) {
+        $this->validationError('general', 'Duplicate entry found');
+      } else {
+        throw $e;
+      }
+    }
   }
 
   public function update($id)
@@ -139,6 +175,34 @@ class GraduatesController
     $data = json_decode(file_get_contents("php://input"), true);
 
     $fillable = ['first_name', 'last_name', 'phone', 'home_phone', 'email', 'shiur_year', 'city', 'address', 'teudat_zehut', 'birth_date', 'student_code', 'notes'];
+
+    // Strict Validations
+    if (isset($data['teudat_zehut']) && $data['teudat_zehut'] !== '') {
+      if (!$this->validateIsraeliID($data['teudat_zehut'])) {
+        $this->validationError('teudat_zehut', 'Invalid Israeli ID checksum');
+      }
+    }
+
+    if (isset($data['email']) && $data['email'] !== '') {
+      if (!$this->validateEmail($data['email'])) {
+        $this->validationError('email', 'Invalid email address');
+      }
+    }
+
+    // Phone Normalization & Validation
+    if (isset($data['phone']) && $data['phone'] !== '') {
+      $data['phone'] = $this->normalizePhone($data['phone']);
+      if (!$this->validatePhone($data['phone'])) {
+        $this->validationError('phone', 'Phone number must be 9 or 10 digits');
+      }
+    }
+
+    if (isset($data['home_phone']) && $data['home_phone'] !== '') {
+      $data['home_phone'] = $this->normalizePhone($data['home_phone']);
+      if (!$this->validatePhone($data['home_phone'])) {
+        $this->validationError('home_phone', 'Phone number must be 9 or 10 digits');
+      }
+    }
 
     $sets = [];
     $params = ['id' => $id];
@@ -158,21 +222,29 @@ class GraduatesController
 
     $sql = "UPDATE graduates SET " . implode(', ', $sets) . " WHERE id = :id AND deleted_at IS NULL";
     $stmt = $this->db->prepare($sql);
-    $stmt->execute($params);
+    try {
+      $stmt->execute($params);
 
-    if ($stmt->rowCount() === 0) {
-      // Check if exists
-      $check = $this->db->prepare("SELECT id FROM graduates WHERE id = :id AND deleted_at IS NULL");
-      $check->execute(['id' => $id]);
-      if (!$check->fetch()) {
-        header('HTTP/1.1 404 Not Found');
-        echo json_encode(['error' => ['message' => 'Graduate not found']]);
-        return;
+      if ($stmt->rowCount() === 0) {
+        // Check if exists
+        $check = $this->db->prepare("SELECT id FROM graduates WHERE id = :id AND deleted_at IS NULL");
+        $check->execute(['id' => $id]);
+        if (!$check->fetch()) {
+          header('HTTP/1.1 404 Not Found');
+          echo json_encode(['error' => ['message' => 'Graduate not found']]);
+          return;
+        }
+        // If exists but no changes, that's fine, just return object
       }
-      // If exists but no changes, that's fine, just return object
-    }
 
-    $this->getById($id);
+      $this->getById($id);
+    } catch (\PDOException $e) {
+      if ($e->errorInfo[1] == 1062) {
+        $this->validationError('general', 'Duplicate entry found');
+      } else {
+        throw $e;
+      }
+    }
   }
 
   public function delete($id)
@@ -188,5 +260,58 @@ class GraduatesController
     }
 
     header('HTTP/1.1 204 No Content');
+  }
+
+  // Israeli ID validation using Luhn checksum
+  private function validateIsraeliID($id)
+  {
+    $id = trim($id);
+    if (strlen($id) > 9 || strlen($id) === 0)
+      return false;
+    $id = str_pad($id, 9, "0", STR_PAD_LEFT);
+
+    $sum = 0;
+    for ($i = 0; $i < 9; $i++) {
+      $digit = (int) $id[$i];
+      $step = $digit * (($i % 2) + 1);
+      if ($step > 9)
+        $step -= 9;
+      $sum += $step;
+    }
+
+    return $sum % 10 === 0;
+  }
+
+  // Normalize phone to digits only
+  private function normalizePhone($phone)
+  {
+    return preg_replace('/\D/', '', $phone);
+  }
+
+  // specific Israeli phone validation (9 or 10 digits)
+  private function validatePhone($phone)
+  {
+    $len = strlen($phone);
+    // Israeli numbers are 9 or 10 digits (after normalization, including leading zero)
+    // Mobile: 05X-XXXXXXX (10)
+    // Landline: 0X-XXXXXXX (9)
+    return $len === 9 || $len === 10;
+  }
+
+  // Standard email validation
+  private function validateEmail($email)
+  {
+    return filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
+  }
+
+  private function validationError($field, $message)
+  {
+    header('HTTP/1.1 400 Bad Request');
+    echo json_encode([
+      'error' => 'VALIDATION_ERROR',
+      'field' => $field,
+      'message' => $message
+    ]);
+    exit;
   }
 }
