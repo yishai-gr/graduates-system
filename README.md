@@ -1,18 +1,18 @@
-# Graduates System - Merkaz HaRav
+# מערכת בוגרים - מרכז הרב
 
-The **Graduates System** ("מערכת בוגרים") is a comprehensive management platform developed for Yeshivat Merkaz HaRav to manage and track their alumni (graduates) and system users.
+**מערכת בוגרים** היא פלטפורמת ניהול מקיפה שנבנתה עבור ישיבת מרכז הרב לניהול ומעקב אחר הבוגרים והמשתמשים במערכת.
 
-## 🚀 Features
+## 🚀 פיצ'רים מרכזיים
 
-- **Graduate Management**: robust CRUD operations for tracking alumni details (contact info, address, graduation year, etc.).
-- **User Management**: Role-Based Access Control (RBAC) for admins and regular users.
-- **Responsive Design**: Modern, responsive UI built with TailwindCSS and Shadcn UI.
-- **Search & Filtering**: Advanced server-side search and filtering capabilities for large datasets.
-- **Secure Authentication**: JWT-based authentication flow.
+- **ניהול בוגרים**: יצירה, עריכה, ומחיקה של נתוני בוגרים (פרטי קשר, כתובת, שנת סיום, וכו').
+- **ניהול משתמשים**: בקרת גישה מבוססת תפקידים (RBAC) למנהלים ומשתמשים רגילים.
+- **עיצוב רספונסיבי**: ממשק משתמש מודרני מותאם לנייד, בנוי עם TailwindCSS ו-Shadcn UI.
+- **חיפוש וסינון**: יכולות חיפוש וסינון מתקדמות בצד השרת עבור כמות גדולה של נתונים.
+- **אבטחה**: תהליך אימות מאובטח מבוסס JWT.
 
-## 🛠 Tech Stack
+## 🛠 טכנולוגיות
 
-### Frontend
+### צד לקוח (Frontend)
 
 - **Framework**: React 18
 - **Language**: TypeScript
@@ -20,21 +20,21 @@ The **Graduates System** ("מערכת בוגרים") is a comprehensive manageme
 - **UI Components**: Shadcn UI
 - **Routing**: React Router 7
 
-### Backend
+### צד שרת (Backend)
 
 - **Language**: PHP 8.x
 - **Database**: MySQL
 - **Architecture**: REST API
 - **Dependency Manager**: Composer
 
-## 📚 Documentation
+## 📚 תיעוד
 
-Detailed documentation and guides can be found here:
+מדריכים מפורטים ניתן למצוא כאן:
 
-- **[System Specifications](frontend/מערכת%20בוגרים.md)**: Full requirements and system breakdown (Hebrew).
-- **[Full Deployment Guide](docs/DEPLOYMENT_GUIDE_HOSTINGER.md)**: How to deploy the full stack to Hostinger (Hebrew).
-- **[Backend Deployment Guide](docs/DEPLOYMENT_GUIDE_HE.md)**: Specifics on the backend automated deployment flow (Hebrew).
+- **[אפיון מערכת](frontend/מערכת%20בוגרים.md)**: דרישות מלאות ופירוט המערכת.
+- **[מדריך פריסה מלא (הוסטינגר)](docs/DEPLOYMENT_GUIDE_HOSTINGER.md)**: איך לפרוס את המערכת המלאה (Full Stack) ל-Hostinger.
+- **[מדריך פריסה לצד שרת](docs/DEPLOYMENT_GUIDE_HE.md)**: פירוט על תהליך הפריסה האוטומטי של ה-Backend.
 
-## 🤝 Contributing
+## 🤝 תרומה לפרויקט
 
-We welcome contributions! Please see our [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to set up the development environment and submit changes.
+נשמח לתרומות! אנא עיינו בקובץ **[CONTRIBUTING.md](CONTRIBUTING.md)** לפרטים על איך להגדיר את סביבת הפיתוח ולהגיש שינויים.
