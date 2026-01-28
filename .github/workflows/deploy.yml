@@ -67,4 +67,5 @@ jobs:
           publish_dir: ./deployment_artifact
           publish_branch: hostinger-deploy
           commit_message: "Deploy: ${{ github.event.head_commit.message }}"
-          force_orphan: true
+          keep_files: false
+          force_orphan: false
