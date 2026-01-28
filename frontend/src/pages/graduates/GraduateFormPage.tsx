@@ -13,6 +13,12 @@ import {
   IconChevronUp,
   IconLoader,
 } from "@tabler/icons-react";
+import { DateInput } from "@/components/ui/date-input";
+import {
+  isValidIsraeliID,
+  isValidIsraeliPhone,
+  normalizePhone,
+} from "@/lib/validation";
 import { standardSchemaValidators, useForm } from "@tanstack/react-form";
 import { z } from "zod";
 
@@ -20,13 +26,28 @@ const graduateSchema = z
   .object({
     firstName: z.string(),
     lastName: z.string(),
-    phone: z.string(),
-    homePhone: z.string(),
+    phone: z
+      .string()
+      .refine(
+        (val) => val === "" || isValidIsraeliPhone(val),
+        "מספר טלפון לא תקין",
+      ),
+    homePhone: z
+      .string()
+      .refine(
+        (val) => val === "" || isValidIsraeliPhone(val),
+        "מספר טלפון לא תקין",
+      ),
     email: z.union([z.literal(""), z.string().email("כתובת אימייל לא תקינה")]),
     city: z.string(),
     address: z.string(),
     shiurYear: z.string(),
-    teudatZehut: z.string(),
+    teudatZehut: z
+      .string()
+      .refine(
+        (val) => val === "" || isValidIsraeliID(val),
+        "תעודת זהות לא תקינה",
+      ),
     birthDate: z.string(),
     notes: z.string(),
     studentCode: z.string(),
@@ -45,6 +66,21 @@ const graduateSchema = z
   );
 
 type GraduateFormValues = z.infer<typeof graduateSchema>;
+
+const fieldMapping: Record<string, keyof GraduateFormValues> = {
+  teudat_zehut: "teudatZehut",
+  first_name: "firstName",
+  last_name: "lastName",
+  phone: "phone",
+  home_phone: "homePhone",
+  email: "email",
+  city: "city",
+  address: "address",
+  shiur_year: "shiurYear",
+  birth_date: "birthDate",
+  student_code: "studentCode",
+  notes: "notes",
+};
 
 export default function GraduateFormPage() {
   const { id } = useParams();
@@ -87,8 +123,8 @@ export default function GraduateFormPage() {
         const graduateData: Omit<Graduate, "id"> = {
           first_name: value.firstName,
           last_name: value.lastName,
-          phone: value.phone,
-          home_phone: value.homePhone,
+          phone: normalizePhone(value.phone),
+          home_phone: normalizePhone(value.homePhone),
           email: value.email,
           city: value.city,
           address: value.address,
@@ -96,7 +132,7 @@ export default function GraduateFormPage() {
           teudat_zehut: value.teudatZehut,
           birth_date: value.birthDate,
           notes: value.notes,
-          student_code: isSuperAdmin ? value.studentCode : undefined, // Only admin can set/update, will handle "preserve existing" server side or merged logic
+          student_code: isSuperAdmin ? value.studentCode : undefined,
         };
 
         // If editing and not super admin, we might lose the existing studentCode if we send undefined?
@@ -142,8 +178,41 @@ export default function GraduateFormPage() {
 
         navigate("/graduates");
       } catch (err: unknown) {
+        // Handle standardized validation errors
+        // Expected format: { error: "VALIDATION_ERROR", field: "teudat_zehut", message: "..." }
+        // graduatesService might throw an object or response.
+        // We need to inspect how the service throws.
+        // Assuming axios or fetch throws on 400.
+        // We'll need to parse the response body if available.
+
+        // @ts-ignore
+        const responseData = err?.response?.data;
+
+        if (
+          responseData &&
+          responseData.error === "VALIDATION_ERROR" &&
+          responseData.field
+        ) {
+          const mappedField = fieldMapping[responseData.field];
+          if (mappedField) {
+            form.setFieldMeta(mappedField, (prev) => ({
+              ...prev,
+              errorMap: {
+                onChange: responseData.message,
+              },
+              errors: [responseData.message], // For tanstack form
+            }));
+            // Also set global error just in case
+            setGlobalError(responseData.message);
+            return;
+          }
+        }
+
         const message =
-          err instanceof Error ? err.message : "אירעה שגיאה בשמירת הנתונים";
+          // @ts-ignore
+          err?.response?.data?.error?.message ||
+          (err instanceof Error ? err.message : "אירעה שגיאה בשמירת הנתונים");
+
         setGlobalError(message);
       }
     },
@@ -259,11 +328,16 @@ export default function GraduateFormPage() {
                     onBlur={field.handleBlur}
                     onChange={(e) => field.handleChange(e.target.value)}
                   />
-                  {field.state.meta.errors ? (
-                    <p className="text-xs text-destructive">
-                      {field.state.meta.errors.join(",")}
-                    </p>
-                  ) : null}
+                  {field.state.meta.errors &&
+                    field.state.meta.errors.length > 0 && (
+                      <p className="text-xs text-destructive">
+                        {field.state.meta.errors
+                          .map((e: any) =>
+                            typeof e === "string" ? e : e?.message || "שגיאה",
+                          )
+                          .join(", ")}
+                      </p>
+                    )}
                 </div>
               )}
             />
@@ -279,6 +353,16 @@ export default function GraduateFormPage() {
                     onBlur={field.handleBlur}
                     onChange={(e) => field.handleChange(e.target.value)}
                   />
+                  {field.state.meta.errors &&
+                    field.state.meta.errors.length > 0 && (
+                      <p className="text-xs text-destructive">
+                        {field.state.meta.errors
+                          .map((e: any) =>
+                            typeof e === "string" ? e : e?.message || "שגיאה",
+                          )
+                          .join(", ")}
+                      </p>
+                    )}
                 </div>
               )}
             />
@@ -298,6 +382,16 @@ export default function GraduateFormPage() {
                     onChange={(e) => field.handleChange(e.target.value)}
                     dir="ltr"
                   />
+                  {field.state.meta.errors &&
+                    field.state.meta.errors.length > 0 && (
+                      <p className="text-xs text-destructive">
+                        {field.state.meta.errors
+                          .map((e: any) =>
+                            typeof e === "string" ? e : e?.message || "שגיאה",
+                          )
+                          .join(", ")}
+                      </p>
+                    )}
                 </div>
               )}
             />
@@ -314,6 +408,16 @@ export default function GraduateFormPage() {
                     onChange={(e) => field.handleChange(e.target.value)}
                     dir="ltr"
                   />
+                  {field.state.meta.errors &&
+                    field.state.meta.errors.length > 0 && (
+                      <p className="text-xs text-destructive">
+                        {field.state.meta.errors
+                          .map((e: any) =>
+                            typeof e === "string" ? e : e?.message || "שגיאה",
+                          )
+                          .join(", ")}
+                      </p>
+                    )}
                 </div>
               )}
             />
@@ -335,7 +439,11 @@ export default function GraduateFormPage() {
                 {field.state.meta.errors &&
                   field.state.meta.errors.length > 0 && (
                     <p className="text-xs text-destructive">
-                      {field.state.meta.errors.join(", ")}
+                      {field.state.meta.errors
+                        .map((e: any) =>
+                          typeof e === "string" ? e : e?.message || "שגיאה",
+                        )
+                        .join(", ")}
                     </p>
                   )}
               </div>
@@ -355,6 +463,16 @@ export default function GraduateFormPage() {
                     onBlur={field.handleBlur}
                     onChange={(e) => field.handleChange(e.target.value)}
                   />
+                  {field.state.meta.errors &&
+                    field.state.meta.errors.length > 0 && (
+                      <p className="text-xs text-destructive">
+                        {field.state.meta.errors
+                          .map((e: any) =>
+                            typeof e === "string" ? e : e?.message || "שגיאה",
+                          )
+                          .join(", ")}
+                      </p>
+                    )}
                 </div>
               )}
             />
@@ -371,6 +489,16 @@ export default function GraduateFormPage() {
                     onChange={(e) => field.handleChange(e.target.value)}
                     placeholder="רחוב ומס' בית"
                   />
+                  {field.state.meta.errors &&
+                    field.state.meta.errors.length > 0 && (
+                      <p className="text-xs text-destructive">
+                        {field.state.meta.errors
+                          .map((e: any) =>
+                            typeof e === "string" ? e : e?.message || "שגיאה",
+                          )
+                          .join(", ")}
+                      </p>
+                    )}
                 </div>
               )}
             />
@@ -389,6 +517,16 @@ export default function GraduateFormPage() {
                   onChange={(e) => field.handleChange(e.target.value)}
                   placeholder="לדוגמה: נח, פו"
                 />
+                {field.state.meta.errors &&
+                  field.state.meta.errors.length > 0 && (
+                    <p className="text-xs text-destructive">
+                      {field.state.meta.errors
+                        .map((e: any) =>
+                          typeof e === "string" ? e : e?.message || "שגיאה",
+                        )
+                        .join(", ")}
+                    </p>
+                  )}
               </div>
             )}
           />
@@ -423,6 +561,18 @@ export default function GraduateFormPage() {
                           onBlur={field.handleBlur}
                           onChange={(e) => field.handleChange(e.target.value)}
                         />
+                        {field.state.meta.errors &&
+                          field.state.meta.errors.length > 0 && (
+                            <p className="text-xs text-destructive">
+                              {field.state.meta.errors
+                                .map((e: any) =>
+                                  typeof e === "string"
+                                    ? e
+                                    : e?.message || "שגיאה",
+                                )
+                                .join(", ")}
+                            </p>
+                          )}
                       </div>
                     )}
                   />
@@ -431,14 +581,22 @@ export default function GraduateFormPage() {
                     children={(field) => (
                       <div className="grid gap-2">
                         <Label htmlFor={field.name}>תאריך לידה</Label>
-                        <Input
-                          id={field.name}
-                          name={field.name}
+                        <DateInput
                           value={field.state.value}
-                          onBlur={field.handleBlur}
-                          onChange={(e) => field.handleChange(e.target.value)}
-                          placeholder="לועזי/עברי"
+                          onChange={(date) => field.handleChange(date)}
                         />
+                        {field.state.meta.errors &&
+                          field.state.meta.errors.length > 0 && (
+                            <p className="text-xs text-destructive">
+                              {field.state.meta.errors
+                                .map((e: any) =>
+                                  typeof e === "string"
+                                    ? e
+                                    : e?.message || "שגיאה",
+                                )
+                                .join(", ")}
+                            </p>
+                          )}
                       </div>
                     )}
                   />
@@ -456,6 +614,18 @@ export default function GraduateFormPage() {
                         onBlur={field.handleBlur}
                         onChange={(e) => field.handleChange(e.target.value)}
                       />
+                      {field.state.meta.errors &&
+                        field.state.meta.errors.length > 0 && (
+                          <p className="text-xs text-destructive">
+                            {field.state.meta.errors
+                              .map((e: any) =>
+                                typeof e === "string"
+                                  ? e
+                                  : e?.message || "שגיאה",
+                              )
+                              .join(", ")}
+                          </p>
+                        )}
                     </div>
                   )}
                 />
@@ -478,6 +648,18 @@ export default function GraduateFormPage() {
                           onBlur={field.handleBlur}
                           onChange={(e) => field.handleChange(e.target.value)}
                         />
+                        {field.state.meta.errors &&
+                          field.state.meta.errors.length > 0 && (
+                            <p className="text-xs text-destructive">
+                              {field.state.meta.errors
+                                .map((e: any) =>
+                                  typeof e === "string"
+                                    ? e
+                                    : e?.message || "שגיאה",
+                                )
+                                .join(", ")}
+                            </p>
+                          )}
                       </div>
                     )}
                   />

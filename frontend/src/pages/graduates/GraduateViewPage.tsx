@@ -16,6 +16,7 @@ import {
   IconPencil,
 } from "@tabler/icons-react";
 import { usePermissions } from "@/hooks/usePermissions";
+import { formatHebrewDate } from "@/lib/dateUtils";
 
 export default function GraduateViewPage() {
   const { id } = useParams();
@@ -179,7 +180,11 @@ export default function GraduateViewPage() {
               <div className="flex items-center gap-2">
                 <IconCake className="h-4 w-4 text-muted-foreground" />
                 <span className="font-medium">תאריך לידה:</span>
-                <span>{graduate.birth_date || "-"}</span>
+                <span>
+                  {graduate.birth_date
+                    ? formatHebrewDate(graduate.birth_date)
+                    : "-"}
+                </span>
               </div>
             </div>
           </div>

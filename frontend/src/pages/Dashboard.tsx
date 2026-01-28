@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ViewsService } from "@/services/viewsService";
 import { Skeleton } from "@/components/ui/skeleton";
+import { HebrewDatePickerDemo } from "@/components/hebrew-calendar-demo";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -117,6 +118,8 @@ export default function Dashboard() {
           </Card>
         )}
       </div>
+
+      <div>{/* <HebrewDatePickerDemo /> */}</div>
 
       {/* TODO: Activity Log (Mock) */}
       {false && isSuperAdmin && (
