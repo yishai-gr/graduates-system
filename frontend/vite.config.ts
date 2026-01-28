@@ -32,9 +32,9 @@ export default defineConfig({
   server: {
     host: true,
   },
-  test: {
-    globals: true,
-    environment: "jsdom",
-    setupFiles: "./src/test/setup.ts",
-  },
+  // test: {
+  //   globals: true,
+  //   environment: "jsdom",
+  //   setupFiles: "./src/test/setup.ts",
+  // },
 });
