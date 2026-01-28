@@ -1,0 +1,70 @@
+name: Deploy to Hostinger
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install and Build Frontend
+        working-directory: ./frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Prepare Deployment Artifact
+        run: |
+          mkdir deployment_artifact
+
+          # Copy Frontend Build to Root
+          cp -r frontend/dist/* deployment_artifact/
+
+          # Copy Backend to API folder
+          mkdir -p deployment_artifact/API
+          cp -r backend/* deployment_artifact/API/
+
+          # Copy System Files
+          # Use the specific root.htaccess we created
+          cp deployment/root.htaccess deployment_artifact/.htaccess
+
+      - name: Cleanup Backend in Artifact
+        working-directory: ./deployment_artifact/API
+        run: |
+          # Remove development/git files from backend if any
+          rm -rf .git .gitignore tests
+
+          # Install PHP Dependencies (if composer.json exists and we want to ship vendor)
+          # Note: Usually better to run composer install here, but we'll copy existing vendor if checked in or rely on server.
+          # Assuming vendor is in .gitignore, we should install it here.
+
+      - name: Install PHP Dependencies
+        if: hashFiles('backend/composer.json') != ''
+        uses: php-actions/composer@v6
+        with:
+          php_version: 8.2
+          working_dir: ./deployment_artifact/API
+          command: install --no-dev --optimize-autoloader
+
+      - name: Deploy to Branch
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./deployment_artifact
+          publish_branch: hostinger-deploy
+          commit_message: "Deploy: ${{ github.event.head_commit.message }}"
+          force_orphan: true

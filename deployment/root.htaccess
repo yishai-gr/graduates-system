@@ -1,0 +1,15 @@
+RewriteEngine On
+
+# 1. API Requests -> API/public/index.php
+# Maps /api/v1/resource -> API/public/index.php
+RewriteRule ^api/(.*)$ API/public/index.php [QSA,L]
+
+# 2. Block direct access to the sensitive API folder
+RewriteRule ^API/ - [F,L]
+
+# 3. SPA Fallback: If not file/dir, serve index.html
+# Exclude API and assets from this rule just to be safe/explicit
+RewriteCond %{REQUEST_URI} !^/api
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.html [L]
