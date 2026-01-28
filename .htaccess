@@ -5,6 +5,9 @@ RewriteEngine On
 RewriteRule ^api/(.*)$ API/public/index.php [QSA,L]
 
 # 2. Block direct access to the sensitive API folder
+# 2. Block direct access to the sensitive API folder
+# Only block if it is a direct request (not an internal rewrite)
+RewriteCond %{ENV:REDIRECT_STATUS} ^$
 RewriteRule ^API/ - [F,L]
 
 # 3. SPA Fallback: If not file/dir, serve index.html
