@@ -13,9 +13,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # -------------------------
+      # Checkout
+      # -------------------------
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Fix git safe directory issue
+      - name: Mark repository as safe
+        run: git config --global --add safe.directory /app
+
+      # -------------------------
+      # Frontend
+      # -------------------------
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -27,39 +37,53 @@ jobs:
           npm ci
           npm run build
 
+      # -------------------------
+      # Prepare Deployment Artifact
+      # -------------------------
       - name: Prepare Deployment Artifact
         run: |
-          mkdir deployment_artifact
+          mkdir -p deployment_artifact
 
-          # Copy Frontend Build to Root
+          # Frontend → root
           cp -r frontend/dist/* deployment_artifact/
 
-          # Copy Backend to API folder
+          # Backend → API
           mkdir -p deployment_artifact/API
           cp -r backend/* deployment_artifact/API/
 
-          # Copy System Files
-          # Use the specific root.htaccess we created
+          # Root .htaccess
           cp deployment/root.htaccess deployment_artifact/.htaccess
 
+      # -------------------------
+      # PHP Setup
+      # -------------------------
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: gd
+          tools: composer
+
+      # -------------------------
+      # Backend Cleanup
+      # -------------------------
       - name: Cleanup Backend in Artifact
         working-directory: ./deployment_artifact/API
         run: |
-          # Remove development/git files from backend if any
-          rm -rf .git .gitignore tests .htaccess
+          rm -rf .git .gitignore tests
 
-          # Install PHP Dependencies (if composer.json exists and we want to ship vendor)
-          # Note: Usually better to run composer install here, but we'll copy existing vendor if checked in or rely on server.
-          # Assuming vendor is in .gitignore, we should install it here.
-
+      # -------------------------
+      # Install PHP Dependencies
+      # -------------------------
       - name: Install PHP Dependencies
         if: hashFiles('backend/composer.json') != ''
-        uses: php-actions/composer@v6
-        with:
-          php_version: 8.2
-          working_dir: ./deployment_artifact/API
-          command: install --no-dev --optimize-autoloader
+        working-directory: ./deployment_artifact/API
+        run: |
+          composer install --no-dev --optimize-autoloader --prefer-dist
 
+      # -------------------------
+      # Deploy to Hostinger branch
+      # -------------------------
       - name: Deploy to Branch
         uses: peaceiris/actions-gh-pages@v3
         with:
