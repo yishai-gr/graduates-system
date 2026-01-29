@@ -1,6 +1,6 @@
 import { useAuth } from "@/context/AuthContext";
 
-type Action = "create" | "read" | "update" | "delete";
+type Action = "create" | "read" | "update" | "delete" | "import";
 type Resource = "users" | "graduates";
 
 export function usePermissions() {
@@ -11,6 +11,9 @@ export function usePermissions() {
 
     // Super admin override
     if (user.role === "super_admin") return true;
+
+    // Import is only for super_admin, so if not super_admin and action is import, return false
+    if (action === "import") return false;
 
     // Construct permission key, e.g., "graduate:read"
     // Handle singular/plural mismatch if needed. Resource is "graduates" or "users".

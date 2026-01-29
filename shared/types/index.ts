@@ -62,3 +62,49 @@ export interface FilterParams {
   search?: string;
   [key: string]: any;
 }
+// Import/Export Types
+export interface ImportRowData {
+  row: number;
+  data: Partial<Graduate>;
+}
+
+export interface ImportValidationError {
+  row: number;
+  data: Partial<Graduate>;
+  errors: string[];
+}
+
+export interface ImportDuplicate {
+  row: number;
+  data: Partial<Graduate>;
+  duplicateId: string;
+  matchFields: string[];
+}
+
+export interface ImportPreviewResponse {
+  success: boolean;
+  summary: {
+    totalRows: number;
+    validRows: number;
+    errorRows: number;
+    duplicateRows: number;
+  };
+  validRows: ImportRowData[];
+  errorRows: ImportValidationError[];
+  duplicateRows: ImportDuplicate[];
+  fieldMapping: Record<number, string | null>;
+}
+
+export interface ImportConfirmRequest {
+  rowsToImport: ImportRowData[];
+}
+
+export interface ImportConfirmResponse {
+  success: boolean;
+  imported: number;
+  failed: number;
+  failedRows: Array<{
+    row: number;
+    errors: string[];
+  }>;
+}

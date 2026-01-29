@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { DataTable } from "@/components/common/DataTable";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { GraduateMobileCard } from "@/components/graduates/GraduateMobileCard";
+import { GraduatesImportDialog } from "@/components/graduates/GraduatesImportDialog";
 import { ProfileCompletion } from "@/components/graduates/ProfileCompletion";
 import { useNavigate } from "react-router";
 import {
@@ -17,6 +18,7 @@ import {
   IconEye,
   IconFilter,
   IconDotsVertical,
+  IconFileImport,
 } from "@tabler/icons-react";
 import {
   DropdownMenu,
@@ -53,6 +55,7 @@ export default function GraduatesPage() {
     null,
   );
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   // const [isDeleting, setIsDeleting] = useState(false);
 
   // Quick Filters for Shiur Manager
@@ -266,12 +269,24 @@ export default function GraduatesPage() {
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
           ניהול בוגרים
         </h1>
-        {canCreate && (
-          <Button onClick={handleAdd} className="w-full sm:w-auto">
-            <IconPlus className="h-4 w-4" />
-            רישום בוגר חדש
-          </Button>
-        )}
+        <div className="flex gap-2 w-full sm:w-auto">
+          {canCreate && (
+            <Button onClick={handleAdd} className="flex-1 sm:flex-none">
+              <IconPlus className="h-4 w-4" />
+              רישום בוגר חדש
+            </Button>
+          )}
+          {can("import", "graduates") && (
+            <Button
+              variant="outline"
+              onClick={() => setIsImportDialogOpen(true)}
+              className="flex-1 sm:flex-none"
+            >
+              <IconFileImport className="h-4 w-4" />
+              ייבוא מקובץ
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4">
@@ -336,6 +351,12 @@ export default function GraduatesPage() {
         onConfirm={handleConfirmDelete}
         variant="destructive"
         confirmText="מחק"
+      />
+
+      <GraduatesImportDialog
+        open={isImportDialogOpen}
+        onOpenChange={setIsImportDialogOpen}
+        onImportComplete={() => setRefreshKey((prev) => prev + 1)}
       />
     </div>
   );

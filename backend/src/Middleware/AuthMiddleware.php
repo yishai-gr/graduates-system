@@ -23,7 +23,13 @@ class AuthMiddleware
 
     try {
       $decoded = JWT::decode($jwt, new Key($secretKey, 'HS256'));
-      return (array) $decoded->data; // Return user data
+      $userData = (array) $decoded->data;
+      
+      // Store user role in $_SERVER for controllers to access
+      $_SERVER['user_role'] = $userData['role'] ?? null;
+      $_SERVER['user_id'] = $userData['id'] ?? null;
+      
+      return $userData;
     } catch (\Exception $e) {
       header('HTTP/1.1 401 Unauthorized');
       echo json_encode(['error' => ['message' => 'Invalid token']]);
