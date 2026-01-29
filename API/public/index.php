@@ -79,18 +79,37 @@ if (strpos($uri, '/api/') !== false) {
       header('HTTP/1.1 405 Method Not Allowed');
     }
   } elseif ($resource === 'graduates') {
+    // Check for import sample download (no auth required)
+    $subResource = $parts[3] ?? null;
+    $subAction = $parts[4] ?? null;
+    
+    if ($subResource === 'import' && $subAction === 'sample') {
+      $format = $parts[5] ?? 'csv';
+      (new \App\Controllers\ImportController())->downloadSample($format);
+    }
+    
+    // Require auth for all other routes
     \App\Middleware\AuthMiddleware::authenticate();
-    $controller = new \App\Controllers\GraduatesController();
-    if ($method === 'GET') {
-      $id ? $controller->getById($id) : $controller->getAll();
-    } elseif ($method === 'POST') {
-      $controller->create();
-    } elseif ($method === 'PUT' && $id) {
-      $controller->update($id);
-    } elseif ($method === 'DELETE' && $id) {
-      $controller->delete($id);
+    
+    // Check for import sub-routes
+    if ($subResource === 'import' && $subAction === 'preview' && $method === 'POST') {
+      (new \App\Controllers\ImportController())->preview();
+    } elseif ($subResource === 'import' && $subAction === 'confirm' && $method === 'POST') {
+      (new \App\Controllers\ImportController())->confirm();
     } else {
-      header('HTTP/1.1 405 Method Not Allowed');
+      // Regular graduates CRUD
+      $controller = new \App\Controllers\GraduatesController();
+      if ($method === 'GET') {
+        $id ? $controller->getById($id) : $controller->getAll();
+      } elseif ($method === 'POST') {
+        $controller->create();
+      } elseif ($method === 'PUT' && $id) {
+        $controller->update($id);
+      } elseif ($method === 'DELETE' && $id) {
+        $controller->delete($id);
+      } else {
+        header('HTTP/1.1 405 Method Not Allowed');
+      }
     }
   } else {
     header('HTTP/1.1 404 Not Found');
