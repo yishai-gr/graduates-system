@@ -38,16 +38,15 @@ class AuthController
     if (!$user || !password_verify($password, $user['password_hash'])) {
       // Setup fallback for initial super admin if the table is empty (Dev helper)
       // Remove this in production!
-      // TODO: Remove this backdoor in production
-      if ($email === 'admin@example.com' && $password === 'admin123' && !$user) {
-        // Return a fake admin token for bootstrapping
-        $this->issueToken([
-          'id' => 0,
-          'email' => 'admin@example.com',
-          'role' => 'super_admin'
-        ]);
-        return;
-      }
+      // if ($email === 'admin@example.com' && $password === 'admin123' && !$user) {
+      //   // Return a fake admin token for bootstrapping
+      //   $this->issueToken([
+      //     'id' => 0,
+      //     'email' => 'admin@example.com',
+      //     'role' => 'super_admin'
+      //   ]);
+      //   return;
+      // }
 
       header('HTTP/1.1 401 Unauthorized');
       echo json_encode(['error' => ['message' => 'Invalid credentials']]);

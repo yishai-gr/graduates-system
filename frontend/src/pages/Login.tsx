@@ -12,10 +12,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { IconAlertCircle } from "@tabler/icons-react";
+import { IconAlertCircle, IconSchool } from "@tabler/icons-react";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("admin@example.com"); // Pre-fill for convenience
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const { login, isLoading, isAuthenticated } = useAuth();
@@ -47,12 +47,15 @@ export default function LoginPage() {
       dir="rtl"
     >
       <Card className="w-full max-w-md">
+        <div className="flex items-center justify-center gap-2">
+          <IconSchool /> מערכת בוגרים - מרכז הרב
+        </div>
         <CardHeader className="space-y-1 text-center">
           <CardTitle className="text-2xl font-bold">התחברות למערכת</CardTitle>
           <CardDescription>הזן את פרטי ההתחברות שלך כדי להמשיך</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 mb-8">
             {error && (
               <div className="flex items-center gap-2 rounded-md bg-destructive/15 p-3 text-sm text-destructive">
                 <IconAlertCircle size={16} />
@@ -82,14 +85,6 @@ export default function LoginPage() {
                 placeholder="********"
                 // Password is not verified in mock but typical field included
               />
-            </div>
-
-            <div className="text-sm text-muted-foreground bg-muted p-2 rounded">
-              <p>משתמשים לדוגמה:</p>
-              <ul className="list-disc list-inside">
-                <li>admin@example.com</li>
-                <li>manager@example.com</li>
-              </ul>
             </div>
           </CardContent>
           <CardFooter>

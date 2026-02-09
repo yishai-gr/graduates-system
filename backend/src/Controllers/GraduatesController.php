@@ -32,8 +32,10 @@ class GraduatesController
 
     // Filters
     if ($search) {
-      $sql .= " AND (first_name LIKE :search OR last_name LIKE :search OR email LIKE :search)";
-      $params['search'] = "%$search%";
+      $sql .= " AND (first_name LIKE :search1 OR last_name LIKE :search2 OR email LIKE :search3)";
+      $params['search1'] = "%$search%";
+      $params['search2'] = "%$search%";
+      $params['search3'] = "%$search%";
     }
 
     if ($shiurYear) {
@@ -67,7 +69,7 @@ class GraduatesController
     $stmt->execute();
     $graduates = $stmt->fetchAll();
 
-    echo json_encode([
+    $json = json_encode([
       'data' => $graduates,
       'meta' => [
         'total' => (int) $total,
@@ -75,6 +77,13 @@ class GraduatesController
         'limit' => $limit
       ]
     ]);
+
+    if ($json === false) {
+      header('HTTP/1.1 500 Internal Server Error');
+      echo json_encode(['error' => 'JSON Encode Error: ' . json_last_error_msg()]);
+    } else {
+      echo $json;
+    }
   }
 
   public function getById($id)

@@ -82,15 +82,15 @@ if (strpos($uri, '/api/') !== false) {
     // Check for import sample download (no auth required)
     $subResource = $parts[3] ?? null;
     $subAction = $parts[4] ?? null;
-    
+
     if ($subResource === 'import' && $subAction === 'sample') {
       $format = $parts[5] ?? 'csv';
       (new \App\Controllers\ImportController())->downloadSample($format);
     }
-    
+
     // Require auth for all other routes
     \App\Middleware\AuthMiddleware::authenticate();
-    
+
     // Check for import sub-routes
     if ($subResource === 'import' && $subAction === 'preview' && $method === 'POST') {
       (new \App\Controllers\ImportController())->preview();
