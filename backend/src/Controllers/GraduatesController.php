@@ -2,17 +2,11 @@
 
 namespace App\Controllers;
 
-use App\Config\Database;
+use App\Core\Response;
 use PDO;
 
-class GraduatesController
+class GraduatesController extends BaseController
 {
-  private $db;
-
-  public function __construct()
-  {
-    $this->db = Database::getConnection();
-  }
 
   public function getAll()
   {
@@ -79,11 +73,9 @@ class GraduatesController
     ]);
 
     if ($json === false) {
-      header('HTTP/1.1 500 Internal Server Error');
-      echo json_encode(['error' => 'JSON Encode Error: ' . json_last_error_msg()]);
-    } else {
-      echo $json;
+      Response::serverError('JSON Encode Error: ' . json_last_error_msg());
     }
+    echo $json;
   }
 
   public function getById($id)
@@ -93,17 +85,15 @@ class GraduatesController
     $graduate = $stmt->fetch();
 
     if (!$graduate) {
-      header('HTTP/1.1 404 Not Found');
-      echo json_encode(['error' => ['message' => 'Graduate not found']]);
-      return;
+      Response::notFound('Graduate not found');
     }
 
-    echo json_encode($graduate);
+    Response::json($graduate);
   }
 
   public function create()
   {
-    $data = json_decode(file_get_contents("php://input"), true);
+    $data = $this->getJsonInput();
 
     // Basic Validation (Enhance as needed)
     // Spec says: "חייבים נתון אחד לפחות"
@@ -118,21 +108,19 @@ class GraduatesController
     }
 
     if (!$hasData) {
-      header('HTTP/1.1 400 Bad Request');
-      echo json_encode(['error' => ['message' => 'Must provide at least one field']]);
-      return;
+      Response::error('Must provide at least one field');
     }
 
     // Strict Validations
     if (!empty($data['teudat_zehut'])) {
       if (!$this->validateIsraeliID($data['teudat_zehut'])) {
-        $this->validationError('teudat_zehut', 'Invalid Israeli ID checksum');
+        Response::validationError('teudat_zehut', 'Invalid Israeli ID checksum');
       }
     }
 
     if (!empty($data['email'])) {
       if (!$this->validateEmail($data['email'])) {
-        $this->validationError('email', 'Invalid email address');
+        Response::validationError('email', 'Invalid email address');
       }
     }
 
@@ -140,14 +128,14 @@ class GraduatesController
     if (!empty($data['phone'])) {
       $data['phone'] = $this->normalizePhone($data['phone']);
       if (!$this->validatePhone($data['phone'])) {
-        $this->validationError('phone', 'Phone number must be 9 or 10 digits');
+        Response::validationError('phone', 'Phone number must be 9 or 10 digits');
       }
     }
 
     if (!empty($data['home_phone'])) {
       $data['home_phone'] = $this->normalizePhone($data['home_phone']);
       if (!$this->validatePhone($data['home_phone'])) {
-        $this->validationError('home_phone', 'Phone number must be 9 or 10 digits');
+        Response::validationError('home_phone', 'Phone number must be 9 or 10 digits');
       }
     }
 
@@ -172,7 +160,7 @@ class GraduatesController
     } catch (\PDOException $e) {
       // Check for duplicate entry on unique keys if any (e.g. teudat_zehut or email if unique)
       if ($e->errorInfo[1] == 1062) {
-        $this->validationError('general', 'Duplicate entry found');
+        Response::validationError('general', 'Duplicate entry found');
       } else {
         throw $e;
       }
@@ -181,20 +169,20 @@ class GraduatesController
 
   public function update($id)
   {
-    $data = json_decode(file_get_contents("php://input"), true);
+    $data = $this->getJsonInput();
 
     $fillable = ['first_name', 'last_name', 'phone', 'home_phone', 'email', 'shiur_year', 'city', 'address', 'teudat_zehut', 'birth_date', 'student_code', 'notes'];
 
     // Strict Validations
     if (isset($data['teudat_zehut']) && $data['teudat_zehut'] !== '') {
       if (!$this->validateIsraeliID($data['teudat_zehut'])) {
-        $this->validationError('teudat_zehut', 'Invalid Israeli ID checksum');
+        Response::validationError('teudat_zehut', 'Invalid Israeli ID checksum');
       }
     }
 
     if (isset($data['email']) && $data['email'] !== '') {
       if (!$this->validateEmail($data['email'])) {
-        $this->validationError('email', 'Invalid email address');
+        Response::validationError('email', 'Invalid email address');
       }
     }
 
@@ -202,14 +190,14 @@ class GraduatesController
     if (isset($data['phone']) && $data['phone'] !== '') {
       $data['phone'] = $this->normalizePhone($data['phone']);
       if (!$this->validatePhone($data['phone'])) {
-        $this->validationError('phone', 'Phone number must be 9 or 10 digits');
+        Response::validationError('phone', 'Phone number must be 9 or 10 digits');
       }
     }
 
     if (isset($data['home_phone']) && $data['home_phone'] !== '') {
       $data['home_phone'] = $this->normalizePhone($data['home_phone']);
       if (!$this->validatePhone($data['home_phone'])) {
-        $this->validationError('home_phone', 'Phone number must be 9 or 10 digits');
+        Response::validationError('home_phone', 'Phone number must be 9 or 10 digits');
       }
     }
 
@@ -224,9 +212,7 @@ class GraduatesController
     }
 
     if (empty($sets)) {
-      header('HTTP/1.1 400 Bad Request');
-      echo json_encode(['error' => ['message' => 'No fields to update']]);
-      return;
+      Response::error('No fields to update');
     }
 
     $sql = "UPDATE graduates SET " . implode(', ', $sets) . " WHERE id = :id AND deleted_at IS NULL";
@@ -239,9 +225,7 @@ class GraduatesController
         $check = $this->db->prepare("SELECT id FROM graduates WHERE id = :id AND deleted_at IS NULL");
         $check->execute(['id' => $id]);
         if (!$check->fetch()) {
-          header('HTTP/1.1 404 Not Found');
-          echo json_encode(['error' => ['message' => 'Graduate not found']]);
-          return;
+          Response::notFound('Graduate not found');
         }
         // If exists but no changes, that's fine, just return object
       }
@@ -249,7 +233,7 @@ class GraduatesController
       $this->getById($id);
     } catch (\PDOException $e) {
       if ($e->errorInfo[1] == 1062) {
-        $this->validationError('general', 'Duplicate entry found');
+        Response::validationError('general', 'Duplicate entry found');
       } else {
         throw $e;
       }
@@ -263,12 +247,10 @@ class GraduatesController
     $stmt->execute(['id' => $id]);
 
     if ($stmt->rowCount() === 0) {
-      header('HTTP/1.1 404 Not Found');
-      echo json_encode(['error' => ['message' => 'Graduate not found']]);
-      return;
+      Response::notFound('Graduate not found');
     }
 
-    header('HTTP/1.1 204 No Content');
+    Response::noContent();
   }
 
   // Israeli ID validation using Luhn checksum
@@ -313,14 +295,5 @@ class GraduatesController
     return filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
   }
 
-  private function validationError($field, $message)
-  {
-    header('HTTP/1.1 400 Bad Request');
-    echo json_encode([
-      'error' => 'VALIDATION_ERROR',
-      'field' => $field,
-      'message' => $message
-    ]);
-    exit;
-  }
+  // validationError moved to Response::validationError()
 }

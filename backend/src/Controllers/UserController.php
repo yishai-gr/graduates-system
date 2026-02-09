@@ -2,17 +2,11 @@
 
 namespace App\Controllers;
 
-use App\Config\Database;
+use App\Core\Response;
 use PDO;
 
-class UserController
+class UserController extends BaseController
 {
-  private $db;
-
-  public function __construct()
-  {
-    $this->db = Database::getConnection();
-  }
 
   public function getAll()
   {
@@ -36,7 +30,7 @@ class UserController
     // as the MockService was doing robust client-side filtering.
     // Ideally we do it server side. Let's do a simple GetAll for now.
 
-    echo json_encode([
+    Response::json([
       'data' => $users,
       'total' => count($users),
       'page' => 1,
@@ -51,20 +45,18 @@ class UserController
     $user = $stmt->fetch();
 
     if (!$user) {
-      header('HTTP/1.1 404 Not Found');
-      echo json_encode(['error' => ['message' => 'User not found']]);
-      return;
+      Response::notFound('User not found');
     }
 
     $user['shiurs'] = json_decode($user['shiurs_managed'] ?? '[]');
     unset($user['shiurs_managed']);
 
-    echo json_encode($user);
+    Response::json($user);
   }
 
   public function create()
   {
-    $data = json_decode(file_get_contents("php://input"), true);
+    $data = $this->getJsonInput();
 
     $email = $data['email'] ?? '';
     $firstName = $data['firstName'] ?? '';
@@ -73,19 +65,14 @@ class UserController
     $shiurs = $data['shiurs'] ?? [];
 
     if (!$email || !$firstName || !$lastName) {
-      header('HTTP/1.1 400 Bad Request');
-      echo json_encode(['error' => ['message' => 'Missing required fields']]);
-      return;
+      Response::error('Missing required fields');
     }
 
     // Check if email exists
     $stmt = $this->db->prepare("SELECT id FROM users WHERE email = ?");
     $stmt->execute([$email]);
     if ($stmt->fetch()) {
-      header('HTTP/1.1 400 Bad Request');
-      // frontend expects this structure for "Email already exists"
-      echo json_encode(['error' => ['message' => 'Email already exists']]);
-      return;
+      Response::error('Email already exists');
     }
 
     // Default password for new users
@@ -99,7 +86,7 @@ class UserController
       $stmt->execute([$email, $defaultPassword, $firstName, $lastName, $role, $shiursJson]);
       $id = $this->db->lastInsertId();
 
-      echo json_encode([
+      Response::json([
         'id' => $id,
         'email' => $email,
         'firstName' => $firstName,
@@ -109,14 +96,13 @@ class UserController
         'passwordChanged' => false
       ]);
     } catch (\PDOException $e) {
-      header('HTTP/1.1 500 Internal Server Error');
-      echo json_encode(['error' => ['message' => 'Database error: ' . $e->getMessage()]]);
+      Response::serverError('Database error: ' . $e->getMessage());
     }
   }
 
   public function update($id)
   {
-    $data = json_decode(file_get_contents("php://input"), true);
+    $data = $this->getJsonInput();
 
     // Fetch existing
     $stmt = $this->db->prepare("SELECT * FROM users WHERE id = ?");
@@ -124,9 +110,7 @@ class UserController
     $user = $stmt->fetch();
 
     if (!$user) {
-      header('HTTP/1.1 404 Not Found');
-      echo json_encode(['error' => ['message' => 'User not found']]);
-      return;
+      Response::notFound('User not found');
     }
 
     // Prepare updates
@@ -143,9 +127,7 @@ class UserController
       $check = $this->db->prepare("SELECT id FROM users WHERE email = ? AND id != ?");
       $check->execute([$email, $id]);
       if ($check->fetch()) {
-        header('HTTP/1.1 400 Bad Request');
-        echo json_encode(['error' => ['message' => 'Email already exists']]);
-        return;
+        Response::error('Email already exists');
       }
     }
 
@@ -168,7 +150,7 @@ class UserController
       $stmt->execute($params);
 
       // Return updated
-      echo json_encode([
+      Response::json([
         'id' => $id,
         'email' => $email,
         'firstName' => $firstName,
@@ -178,8 +160,7 @@ class UserController
         'passwordChanged' => $password ? true : (bool) ($user['password_changed'] ?? false)
       ]);
     } catch (\PDOException $e) {
-      header('HTTP/1.1 500 Internal Server Error');
-      echo json_encode(['error' => ['message' => 'Database error']]);
+      Response::serverError('Database error');
     }
   }
 
@@ -190,8 +171,7 @@ class UserController
       $stmt->execute([$id]);
       http_response_code(204);
     } catch (\PDOException $e) {
-      header('HTTP/1.1 500 Internal Server Error');
-      echo json_encode(['error' => ['message' => 'Could not delete user']]);
+      Response::serverError('Could not delete user');
     }
   }
 }

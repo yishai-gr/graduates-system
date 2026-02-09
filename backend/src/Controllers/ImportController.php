@@ -2,20 +2,14 @@
 
 namespace App\Controllers;
 
-use App\Config\Database;
+use App\Core\Response;
 use PDO;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
-class ImportController
+class ImportController extends BaseController
 {
-  private $db;
-
-  public function __construct()
-  {
-    $this->db = Database::getConnection();
-  }
 
   /**
    * Preview import data from uploaded file
@@ -25,16 +19,12 @@ class ImportController
   {
     // Check for admin permission
     if (!isset($_SERVER['user_role']) || $_SERVER['user_role'] !== 'super_admin') {
-      header('HTTP/1.1 403 Forbidden');
-      echo json_encode(['error' => 'Only administrators can import data']);
-      exit;
+      Response::error('Only administrators can import data', 403);
     }
 
     // Check if file was uploaded
     if (!isset($_FILES['file'])) {
-      header('HTTP/1.1 400 Bad Request');
-      echo json_encode(['error' => 'No file uploaded']);
-      exit;
+      Response::error('No file uploaded');
     }
 
     $file = $_FILES['file'];
@@ -48,15 +38,11 @@ class ImportController
       $worksheet = $spreadsheet->getActiveSheet();
       $rows = $worksheet->toArray();
     } catch (\Exception $e) {
-      header('HTTP/1.1 400 Bad Request');
-      echo json_encode(['error' => 'Failed to parse file: ' . $e->getMessage()]);
-      exit;
+      Response::error('Failed to parse file: ' . $e->getMessage());
     }
 
     if (empty($rows)) {
-      header('HTTP/1.1 400 Bad Request');
-      echo json_encode(['error' => 'File is empty']);
-      exit;
+      Response::error('File is empty');
     }
 
     // Extract headers from first row
@@ -111,7 +97,7 @@ class ImportController
       }
     }
 
-    echo json_encode([
+    Response::json([
       'success' => true,
       'summary' => [
         'totalRows' => count($rows) - 1,
@@ -134,17 +120,13 @@ class ImportController
   {
     // Check for admin permission
     if (!isset($_SERVER['user_role']) || $_SERVER['user_role'] !== 'super_admin') {
-      header('HTTP/1.1 403 Forbidden');
-      echo json_encode(['error' => 'Only administrators can import data']);
-      exit;
+      Response::error('Only administrators can import data', 403);
     }
 
-    $data = json_decode(file_get_contents("php://input"), true);
+    $data = $this->getJsonInput();
 
     if (!isset($data['rowsToImport']) || !is_array($data['rowsToImport'])) {
-      header('HTTP/1.1 400 Bad Request');
-      echo json_encode(['error' => 'No rows to import']);
-      exit;
+      Response::error('No rows to import');
     }
 
     // Begin transaction
@@ -196,7 +178,7 @@ class ImportController
       // Commit transaction
       $this->db->commit();
 
-      echo json_encode([
+      Response::json([
         'success' => true,
         'imported' => $importedCount,
         'failed' => count($failedRows),
@@ -206,11 +188,7 @@ class ImportController
       // Rollback on error
       $this->db->rollBack();
 
-      header('HTTP/1.1 500 Internal Server Error');
-      echo json_encode([
-        'error' => 'Import failed: ' . $e->getMessage()
-      ]);
-      exit;
+      Response::serverError('Import failed: ' . $e->getMessage());
     }
   }
 
@@ -221,15 +199,13 @@ class ImportController
   public function downloadSample($format = 'csv')
   {
     $format = strtolower($format);
-    
+
     if ($format === 'csv') {
       $this->downloadCsvSample();
     } elseif ($format === 'xlsx') {
       $this->downloadExcelSample();
     } else {
-      header('HTTP/1.1 400 Bad Request');
-      echo json_encode(['error' => 'Invalid format. Use csv or xlsx']);
-      exit;
+      Response::error('Invalid format. Use csv or xlsx');
     }
   }
 
@@ -245,7 +221,7 @@ class ImportController
     header('Expires: 0');
 
     $output = fopen('php://output', 'w');
-    
+
     // CSV header with Hebrew labels
     fputcsv($output, [
       'שם פרטי',
@@ -261,7 +237,7 @@ class ImportController
       'קוד סטודנט',
       'הערות'
     ], ',', '"');
-    
+
     // Sample row
     fputcsv($output, [
       'יוסף',
@@ -277,7 +253,7 @@ class ImportController
       'STU001',
       'הערה לדוגמה'
     ], ',', '"');
-    
+
     fclose($output);
     exit;
   }
@@ -363,17 +339,13 @@ class ImportController
   {
     // Check file size (max 50MB)
     if ($file['size'] > 50 * 1024 * 1024) {
-      header('HTTP/1.1 400 Bad Request');
-      echo json_encode(['error' => 'File size exceeds 50MB limit']);
-      exit;
+      Response::error('File size exceeds 50MB limit');
     }
 
     // Check MIME type and extension
     $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
     if (!in_array($ext, ['xlsx', 'xls', 'csv'])) {
-      header('HTTP/1.1 400 Bad Request');
-      echo json_encode(['error' => 'Invalid file type. Only Excel (.xlsx, .xls) and CSV files are allowed']);
-      exit;
+      Response::error('Invalid file type. Only Excel (.xlsx, .xls) and CSV files are allowed');
     }
   }
 

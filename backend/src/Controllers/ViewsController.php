@@ -2,18 +2,12 @@
 
 namespace App\Controllers;
 
-use App\Config\Database;
+use App\Core\Response;
 use App\Middleware\AuthMiddleware;
 use PDO;
 
-class ViewsController
+class ViewsController extends BaseController
 {
-  private $db;
-
-  public function __construct()
-  {
-    $this->db = Database::getConnection();
-  }
 
   public function home()
   {
@@ -68,8 +62,6 @@ class ViewsController
       }
     }
 
-    echo json_encode([
-      'stats' => $stats
-    ]);
+    Response::json(['stats' => $stats]);
   }
 }
