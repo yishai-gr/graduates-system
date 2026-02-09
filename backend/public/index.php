@@ -41,80 +41,9 @@ $basePath = $scriptDir === '/' ? '' : $scriptDir; // "/backend/public" or "" or 
 // If it does, treat as API. If not, serve Frontend.
 
 if (strpos($uri, '/api/') !== false) {
-  // API Request Handling
-  // Strip everything before /api/ to get internal resource path
-  $apiPath = substr($uri, strpos($uri, '/api/'));
-  $parts = explode('/', trim($apiPath, '/')); // ["api", "v1", "graduates", ...]
-
-  if (count($parts) < 2 || $parts[0] !== 'api' || $parts[1] !== 'v1') {
-    header('HTTP/1.1 404 Not Found');
-    echo json_encode(['error' => 'Invalid API version']);
-    exit;
-  }
-
-  $resource = $parts[2] ?? null;
-  $id = $parts[3] ?? null;
-  $method = $_SERVER['REQUEST_METHOD'];
-
-  // Routing Logic
-  // API v1 Views
-  if ($resource === 'views' && $parts[3] === 'home' && $method === 'GET') {
-    (new \App\Controllers\ViewsController())->home();
-  } elseif ($resource === 'auth' && $parts[3] === 'login' && $method === 'POST') {
-    (new \App\Controllers\AuthController())->login();
-  } elseif ($resource === 'auth' && $parts[3] === 'me' && $method === 'GET') {
-    (new \App\Controllers\AuthController())->me();
-  } elseif ($resource === 'users') {
-    \App\Middleware\AuthMiddleware::authenticate();
-    $controller = new \App\Controllers\UserController();
-    if ($method === 'GET') {
-      $id ? $controller->getById($id) : $controller->getAll();
-    } elseif ($method === 'POST') {
-      $controller->create();
-    } elseif ($method === 'PUT' && $id) {
-      $controller->update($id);
-    } elseif ($method === 'DELETE' && $id) {
-      $controller->delete($id);
-    } else {
-      header('HTTP/1.1 405 Method Not Allowed');
-    }
-  } elseif ($resource === 'graduates') {
-    // Check for import sample download (no auth required)
-    $subResource = $parts[3] ?? null;
-    $subAction = $parts[4] ?? null;
-
-    if ($subResource === 'import' && $subAction === 'sample') {
-      $format = $parts[5] ?? 'csv';
-      (new \App\Controllers\ImportController())->downloadSample($format);
-    }
-
-    // Require auth for all other routes
-    \App\Middleware\AuthMiddleware::authenticate();
-
-    // Check for import sub-routes
-    if ($subResource === 'import' && $subAction === 'preview' && $method === 'POST') {
-      (new \App\Controllers\ImportController())->preview();
-    } elseif ($subResource === 'import' && $subAction === 'confirm' && $method === 'POST') {
-      (new \App\Controllers\ImportController())->confirm();
-    } else {
-      // Regular graduates CRUD
-      $controller = new \App\Controllers\GraduatesController();
-      if ($method === 'GET') {
-        $id ? $controller->getById($id) : $controller->getAll();
-      } elseif ($method === 'POST') {
-        $controller->create();
-      } elseif ($method === 'PUT' && $id) {
-        $controller->update($id);
-      } elseif ($method === 'DELETE' && $id) {
-        $controller->delete($id);
-      } else {
-        header('HTTP/1.1 405 Method Not Allowed');
-      }
-    }
-  } else {
-    header('HTTP/1.1 404 Not Found');
-    echo json_encode(['error' => ['message' => 'Endpoint not found']]);
-  }
+  // API Request Handling - Use Router
+  $router = require __DIR__ . '/../src/routes.php';
+  $router->dispatch();
 } else {
   // SPA Fallback: Serve frontend/dist/index.html
   // Adjust path relative to this file: ./index.php -> ../../frontend/dist/index.html
