@@ -8,6 +8,14 @@ class Router
   private array $groupStack = [];
 
   /**
+   * Middleware class registry
+   */
+  private array $middlewareRegistry = [
+    'auth' => \App\Middleware\AuthMiddleware::class,
+    'admin' => \App\Middleware\AdminMiddleware::class,
+  ];
+
+  /**
    * Register a GET route
    */
   public function get(string $path, string $controller, string $action): self
@@ -76,7 +84,13 @@ class Router
         $prefix .= $group['prefix'];
       }
       if (isset($group['middleware'])) {
-        $middleware[] = $group['middleware'];
+        // Support both single middleware and array of middlewares
+        $groupMiddleware = $group['middleware'];
+        if (is_array($groupMiddleware)) {
+          $middleware = array_merge($middleware, $groupMiddleware);
+        } else {
+          $middleware[] = $groupMiddleware;
+        }
       }
     }
 
@@ -177,11 +191,18 @@ class Router
    */
   private function runMiddleware(string $middleware): void
   {
-    switch ($middleware) {
-      case 'auth':
-        \App\Middleware\AuthMiddleware::authenticate();
-        break;
-      // Add more middleware cases as needed
+    if (isset($this->middlewareRegistry[$middleware])) {
+      $middlewareClass = $this->middlewareRegistry[$middleware];
+      $middlewareClass::handle();
     }
+  }
+
+  /**
+   * Register a custom middleware
+   */
+  public function registerMiddleware(string $name, string $class): self
+  {
+    $this->middlewareRegistry[$name] = $class;
+    return $this;
   }
 }

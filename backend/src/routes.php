@@ -33,9 +33,11 @@ $router->group(['prefix' => '/api/v1', 'middleware' => 'auth'], function ($route
   $router->put('/graduates/{id}', 'GraduatesController', 'update');
   $router->delete('/graduates/{id}', 'GraduatesController', 'delete');
 
-  // Import operations
-  $router->post('/graduates/import/preview', 'ImportController', 'preview');
-  $router->post('/graduates/import/confirm', 'ImportController', 'confirm');
+  // Import operations (admin only)
+  $router->post('/graduates/import/preview', 'ImportController', 'preview')
+    ->middleware('admin');
+  $router->post('/graduates/import/confirm', 'ImportController', 'confirm')
+    ->middleware('admin');
 });
 
 return $router;

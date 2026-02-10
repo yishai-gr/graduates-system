@@ -17,10 +17,7 @@ class ImportController extends BaseController
    */
   public function preview()
   {
-    // Check for admin permission
-    if (!isset($_SERVER['user_role']) || $_SERVER['user_role'] !== 'super_admin') {
-      Response::error('Only administrators can import data', 403);
-    }
+    // Admin permission check handled by AdminMiddleware
 
     // Check if file was uploaded
     if (!isset($_FILES['file'])) {
@@ -118,10 +115,7 @@ class ImportController extends BaseController
    */
   public function confirm()
   {
-    // Check for admin permission
-    if (!isset($_SERVER['user_role']) || $_SERVER['user_role'] !== 'super_admin') {
-      Response::error('Only administrators can import data', 403);
-    }
+    // Admin permission check handled by AdminMiddleware
 
     $data = $this->getJsonInput();
 
