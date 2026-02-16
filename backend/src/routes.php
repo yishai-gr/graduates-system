@@ -8,36 +8,53 @@ $router = new Router();
 // Public Routes (no authentication required)
 // ============================================
 
-$router->get('/api/v1/views/home', 'ViewsController', 'home');
-$router->post('/api/v1/auth/login', 'AuthController', 'login');
-$router->get('/api/v1/auth/me', 'AuthController', 'me');
-$router->get('/api/v1/graduates/import/sample/{format}', 'ImportController', 'downloadSample');
+$router->group(prefix: '/api/v1', callback: function ($router) {
 
-// ============================================
-// Protected Routes (require authentication)
-// ============================================
+  // Public Routes
+  $router->group(callback: function ($router) {
+    $router->get('/views/home', 'ViewsController', 'home');
 
-$router->group(['prefix' => '/api/v1', 'middleware' => 'auth'], function ($router) {
+    // Auth Routes
+    $router->group(prefix: '/auth', controller: 'AuthController', callback: function ($router) {
+      $router->post('/login', 'login');
+      $router->get('/me', 'me');
+    });
 
-  // Users CRUD
-  $router->get('/users', 'UserController', 'getAll');
-  $router->get('/users/{id}', 'UserController', 'getById');
-  $router->post('/users', 'UserController', 'create');
-  $router->put('/users/{id}', 'UserController', 'update');
-  $router->delete('/users/{id}', 'UserController', 'delete');
+    $router->get('/graduates/import/sample/{format}', 'ImportController', 'downloadSample');
+  });
 
-  // Graduates CRUD
-  $router->get('/graduates', 'GraduatesController', 'getAll');
-  $router->get('/graduates/{id}', 'GraduatesController', 'getById');
-  $router->post('/graduates', 'GraduatesController', 'create');
-  $router->put('/graduates/{id}', 'GraduatesController', 'update');
-  $router->delete('/graduates/{id}', 'GraduatesController', 'delete');
+  // Protected Routes
+  $router->group(middleware: 'auth', callback: function ($router) {
 
-  // Import operations (admin only)
-  $router->post('/graduates/import/preview', 'ImportController', 'preview')
-    ->middleware('admin');
-  $router->post('/graduates/import/confirm', 'ImportController', 'confirm')
-    ->middleware('admin');
+    // Users Resource
+    $router->group(prefix: '/users', controller: 'UserController', callback: function ($router) {
+      $router->get('', 'getAll');
+      $router->get('/{id}', 'getById');
+      $router->post('', 'create');
+      $router->put('/{id}', 'update');
+      $router->delete('/{id}', 'delete');
+    });
+
+    // Graduates Resource
+    $router->group(prefix: '/graduates', callback: function ($router) {
+
+      $router->group(controller: 'GraduatesController', callback: function ($router) {
+        $router->get('', 'getAll');
+        $router->get('/{id}', 'getById');
+        $router->post('', 'create');
+        $router->put('/{id}', 'update');
+        $router->delete('/{id}', 'delete');
+      });
+
+      // Import Operations (Admin only)
+      $router->group(prefix: '/import', middleware: 'admin', controller: 'ImportController', callback: function ($router) {
+        $router->post('/preview', 'preview');
+        $router->post('/confirm', 'confirm');
+      });
+    });
+
+  });
+
 });
 
 return $router;

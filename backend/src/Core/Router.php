@@ -18,33 +18,33 @@ class Router
   /**
    * Register a GET route
    */
-  public function get(string $path, string $controller, string $action): self
+  public function get(string $path, string $action_or_controller, ?string $action = null): self
   {
-    return $this->addRoute('GET', $path, $controller, $action);
+    return $this->addRoute('GET', $path, $action_or_controller, $action);
   }
 
   /**
    * Register a POST route
    */
-  public function post(string $path, string $controller, string $action): self
+  public function post(string $path, string $action_or_controller, ?string $action = null): self
   {
-    return $this->addRoute('POST', $path, $controller, $action);
+    return $this->addRoute('POST', $path, $action_or_controller, $action);
   }
 
   /**
    * Register a PUT route
    */
-  public function put(string $path, string $controller, string $action): self
+  public function put(string $path, string $action_or_controller, ?string $action = null): self
   {
-    return $this->addRoute('PUT', $path, $controller, $action);
+    return $this->addRoute('PUT', $path, $action_or_controller, $action);
   }
 
   /**
    * Register a DELETE route
    */
-  public function delete(string $path, string $controller, string $action): self
+  public function delete(string $path, string $action_or_controller, ?string $action = null): self
   {
-    return $this->addRoute('DELETE', $path, $controller, $action);
+    return $this->addRoute('DELETE', $path, $action_or_controller, $action);
   }
 
   /**
@@ -62,10 +62,19 @@ class Router
   /**
    * Create a route group with shared attributes
    */
-  public function group(array $options, callable $callback): self
+  public function group(string $prefix = '', array|string $middleware = [], ?string $controller = null, ?callable $callback = null): self
   {
+    $options = [
+      'prefix' => $prefix,
+      'middleware' => $middleware,
+      'controller' => $controller,
+    ];
     $this->groupStack[] = $options;
-    $callback($this);
+
+    if ($callback) {
+      $callback($this);
+    }
+
     array_pop($this->groupStack);
     return $this;
   }
@@ -73,10 +82,18 @@ class Router
   /**
    * Internal method to add a route
    */
-  private function addRoute(string $method, string $path, string $controller, string $action): self
+  private function addRoute(string $method, string $path, string $action_or_controller, ?string $action = null): self
   {
     $prefix = '';
     $middleware = [];
+    $controller = null;
+
+    // Resolve controller and action
+    if ($action === null) {
+      $action = $action_or_controller;
+    } else {
+      $controller = $action_or_controller;
+    }
 
     // Apply group attributes
     foreach ($this->groupStack as $group) {
@@ -92,6 +109,14 @@ class Router
           $middleware[] = $groupMiddleware;
         }
       }
+      // If controller wasn't explicitly provided, look for it in the group
+      if ($controller === null && isset($group['controller'])) {
+        $controller = $group['controller'];
+      }
+    }
+
+    if ($controller === null) {
+      throw new \Exception("Controller not defined for route: $method $path");
     }
 
     $this->routes[] = [
