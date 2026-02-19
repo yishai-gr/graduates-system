@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, memo } from "react";
 import type { User } from "@shared/types";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,6 @@ import {
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
@@ -36,7 +35,7 @@ interface UserMobileCardProps {
   onChangePassword?: (user: User) => void;
 }
 
-export function UserMobileCard({
+export const UserMobileCard = memo(function UserMobileCard({
   user,
   onEdit,
   onView,
@@ -101,33 +100,35 @@ export function UserMobileCard({
       >
         <Card className="p-0 border-0 shadow-none">
           <CardHeader className="p-4 py-3">
-            <div className="flex justify-between items-center">
-              <div>
-                <div className="font-bold text-lg flex items-center gap-2">
-                  {user.firstName} {user.lastName}
+            <div className="flex justify-between items-center gap-4">
+              <div className="flex-1 min-w-0">
+                <div className="font-bold text-lg flex items-center gap-2 truncate">
+                  <span className="truncate">
+                    {user.firstName} {user.lastName}
+                  </span>
                   {!user.passwordChanged && (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>למשתמש זה לא הוגדרה סיסמה</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse shrink-0" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>למשתמש זה לא הוגדרה סיסמה</p>
+                      </TooltipContent>
+                    </Tooltip>
                   )}
                 </div>
                 <div className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
                   {user.role === "shiur_manager" && (
-                    <div className="text-sm">
+                    <div className="text-sm truncate">
                       <span className="font-semibold">מחזורים: </span>
-                      {user.shiurs?.length ? user.shiurs.join(", ") : "-"}
+                      {Array.isArray(user.shiurs) && user.shiurs.length > 0
+                        ? user.shiurs.join(", ")
+                        : "-"}
                     </div>
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 <span
                   className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium gap-1 whitespace-nowrap ${
                     user.role === "super_admin"
@@ -215,4 +216,4 @@ export function UserMobileCard({
       </motion.div>
     </div>
   );
-}
+});

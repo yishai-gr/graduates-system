@@ -9,7 +9,12 @@ class GraduatesService {
     if (params.page) query.append("page", params.page.toString());
     if (params.pageSize) query.append("limit", params.pageSize.toString());
     if (params.search) query.append("search", params.search);
-    if (params.shiurYear) query.append("shiur_year", params.shiurYear);
+    if (params.shiurYear) {
+      const year = Array.isArray(params.shiurYear)
+        ? params.shiurYear.join(",")
+        : params.shiurYear;
+      query.append("shiur_year", year);
+    }
     if (params.sortBy) query.append("sort_by", params.sortBy);
     if (params.order) query.append("order", params.order);
 
@@ -35,6 +40,12 @@ class GraduatesService {
 
   async deleteGraduate(id: string): Promise<void> {
     return ApiClient.delete<void>(`/graduates/${id}`);
+  }
+
+  async getGraduateYears(): Promise<{ shiur_year: string; count: number }[]> {
+    return ApiClient.get<{ shiur_year: string; count: number }[]>(
+      "/graduates/years",
+    );
   }
 }
 

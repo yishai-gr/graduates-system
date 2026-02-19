@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { usersService } from "@/services/usersService";
 import type { Role } from "@shared/types";
 import { Button } from "@/components/ui/button";
@@ -18,17 +19,19 @@ import {
   IconArrowRight,
   IconLoader,
 } from "@tabler/icons-react";
+import { HebrewYearCombobox } from "@/components/users/HebrewYearCombobox";
 
 export default function UserFormPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { isSuperAdmin } = usePermissions();
+  useDocumentTitle(id ? "עריכת משתמש" : "הוספת משתמש");
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<Role>("shiur_manager");
-  const [shiurs, setShiurs] = useState<string>("");
+  const [shiurs, setShiurs] = useState<string[]>([]);
 
   const [isLoading, setIsLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(!!id);
@@ -50,7 +53,7 @@ export default function UserFormPage() {
           setLastName(user.lastName);
           setEmail(user.email);
           setRole(user.role);
-          setShiurs(user.shiurs?.join(", ") || "");
+          setShiurs(user.shiurs || []);
         })
         .catch((err) => {
           console.error(err);
@@ -74,20 +77,12 @@ export default function UserFormPage() {
         throw new Error("נא למלא את כל השדות החובה");
       }
 
-      const shiurYears =
-        role === "shiur_manager" && shiurs
-          ? shiurs
-              .split(",")
-              .map((s) => s.trim())
-              .filter((s) => s !== "")
-          : undefined;
-
       const userData = {
         firstName,
         lastName,
         email,
         role,
-        shiurs: shiurYears,
+        shiurs: role === "shiur_manager" ? shiurs : undefined,
       };
 
       let newId = id;
@@ -186,13 +181,15 @@ export default function UserFormPage() {
 
           {role === "shiur_manager" && (
             <div className="grid gap-2 animate-in fade-in duration-300">
-              <Label htmlFor="shiurs">מחזורים (מופרדים בפסיק: נט, פד)</Label>
-              <Input
-                id="shiurs"
+              <Label htmlFor="shiurs">מחזורים (שנים עבריות)</Label>
+              <HebrewYearCombobox
                 value={shiurs}
-                onChange={(e) => setShiurs(e.target.value)}
-                placeholder="לדוגמה: נט, פד"
+                onChange={setShiurs}
+                multiple
               />
+              <p className="text-[0.8rem] text-muted-foreground">
+                ניתן לבחור מספר מחזורים.
+              </p>
             </div>
           )}
 

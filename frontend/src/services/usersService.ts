@@ -9,7 +9,7 @@ class UsersService {
 
     const query = new URLSearchParams();
     if (params.page) query.append("page", params.page.toString());
-    if (params.pageSize) query.append("pageSize", params.pageSize.toString());
+    if (params.pageSize) query.append("limit", params.pageSize.toString());
     if (params.search) query.append("search", params.search);
     if (params.role) query.append("role", params.role);
 

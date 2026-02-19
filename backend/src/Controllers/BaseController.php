@@ -22,4 +22,9 @@ abstract class BaseController
     $input = file_get_contents("php://input");
     return json_decode($input, true) ?? [];
   }
+
+  protected function validateHebrewYear($year)
+  {
+    return preg_match('/^[\x{0590}-\x{05FF}\'"\s]+$/u', $year);
+  }
 }

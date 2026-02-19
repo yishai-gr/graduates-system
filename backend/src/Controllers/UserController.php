@@ -10,8 +10,46 @@ class UserController extends BaseController
 
   public function getAll()
   {
-    $sql = "SELECT id, email, first_name as firstName, last_name as lastName, role, shiurs_managed, password_changed as passwordChanged FROM users ORDER BY first_name ASC";
-    $stmt = $this->db->query($sql);
+    // Params
+    $page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
+    $limit = isset($_GET['limit']) ? (int) $_GET['limit'] : 20;
+    $search = $_GET['search'] ?? '';
+
+    $offset = ($page - 1) * $limit;
+
+    // Base Query
+    $sql = "SELECT id, email, first_name as firstName, last_name as lastName, role, shiurs_managed, password_changed as passwordChanged, shiurs_managed FROM users WHERE 1=1";
+    $params = [];
+
+    // Search Filter
+    if ($search) {
+      $sql .= " AND (first_name LIKE :search1 OR last_name LIKE :search2 OR email LIKE :search3)";
+      $params['search1'] = "%$search%";
+      $params['search2'] = "%$search%";
+      $params['search3'] = "%$search%";
+    }
+
+    // Count Total
+    $countSql = str_replace(
+      "SELECT id, email, first_name as firstName, last_name as lastName, role, shiurs_managed, password_changed as passwordChanged, shiurs_managed",
+      "SELECT COUNT(*)",
+      $sql
+    );
+    $stmt = $this->db->prepare($countSql);
+    $stmt->execute($params);
+    $total = $stmt->fetchColumn();
+
+    // Order & Limit
+    $sql .= " ORDER BY first_name ASC LIMIT :limit OFFSET :offset";
+
+    $stmt = $this->db->prepare($sql);
+    foreach ($params as $key => $val) {
+      $stmt->bindValue($key, $val);
+    }
+    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+
+    $stmt->execute();
     $users = $stmt->fetchAll();
 
     // Decode shiurs_managed for each user
@@ -20,21 +58,11 @@ class UserController extends BaseController
       unset($user['shiurs_managed']);
     }
 
-    // Return in format expected by PaginatedResponse
-    // For now, assuming no server-side pagination for MVP or small user counts
-    // If we want pagination, we can parse $_GET['page'] etc. 
-    // But for simplicity let's return all and let frontend paginate or implement simple slicing here.
-    // The frontend expects { data: [], total: N, ... }
-
-    // Let's implement basic search/filter if needed, OR just return all for CLIENT-SIDE pagination for now 
-    // as the MockService was doing robust client-side filtering.
-    // Ideally we do it server side. Let's do a simple GetAll for now.
-
     Response::json([
       'data' => $users,
-      'total' => count($users),
-      'page' => 1,
-      'pageSize' => count($users)
+      'total' => (int) $total,
+      'page' => $page,
+      'pageSize' => $limit
     ]);
   }
 
@@ -63,6 +91,14 @@ class UserController extends BaseController
     $lastName = $data['lastName'] ?? '';
     $role = $data['role'] ?? 'shiur_manager';
     $shiurs = $data['shiurs'] ?? [];
+
+    if ($role === 'shiur_manager' && !empty($shiurs)) {
+      foreach ($shiurs as $shiur) {
+        if (!$this->validateHebrewYear($shiur)) {
+          Response::validationError('shiurs', 'One or more years are invalid Hebrew years');
+        }
+      }
+    }
 
     if (!$email || !$firstName || !$lastName) {
       Response::error('Missing required fields');
@@ -120,7 +156,22 @@ class UserController extends BaseController
     $lastName = $data['lastName'] ?? $user['last_name'];
     $email = $data['email'] ?? $user['email'];
     $role = $data['role'] ?? $user['role'];
-    $shiurs = isset($data['shiurs']) ? json_encode($data['shiurs']) : $user['shiurs_managed'];
+    $role = $data['role'] ?? $user['role'];
+
+    $shiurs = null;
+    if (isset($data['shiurs'])) {
+      $shiursArray = $data['shiurs'];
+      if ($role === 'shiur_manager' && !empty($shiursArray)) {
+        foreach ($shiursArray as $s) {
+          if (!$this->validateHebrewYear($s)) {
+            Response::validationError('shiurs', 'One or more years are invalid Hebrew years');
+          }
+        }
+      }
+      $shiurs = json_encode($shiursArray);
+    } else {
+      $shiurs = $user['shiurs_managed'];
+    }
 
     // Check email uniqueness if changed
     if ($email !== $user['email']) {

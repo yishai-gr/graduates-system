@@ -6,11 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { IconAlertCircle, IconCheck, IconLoader } from "@tabler/icons-react";
 import { useAuth } from "@/context/AuthContext";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function ChangePasswordPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
+  useDocumentTitle("שינוי סיסמה");
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -94,6 +96,7 @@ export default function ChangePasswordPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
               autoFocus
+              autoComplete="new-password"
             />
           </div>
 
@@ -105,6 +108,7 @@ export default function ChangePasswordPage() {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
+              autoComplete="new-password"
             />
           </div>
 

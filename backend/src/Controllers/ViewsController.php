@@ -48,18 +48,13 @@ class ViewsController extends BaseController
     $shiurs = $user['shiurs'] ?? [];
 
     if (!empty($shiurs)) {
-      // sanitize integers
-      $shiurSafe = [];
-      foreach ($shiurs as $s) {
-        if (is_numeric($s))
-          $shiurSafe[] = (int) $s;
-      }
+      // Create placeholders for the IN clause: ?, ?, ?
+      $placeholders = implode(',', array_fill(0, count($shiurs), '?'));
 
-      if (!empty($shiurSafe)) {
-        $inQuery = implode(',', $shiurSafe);
-        $stmt = $this->db->query("SELECT COUNT(*) FROM graduates WHERE shiur_year IN ($inQuery) AND deleted_at IS NULL");
-        $stats['myGraduates'] = (int) $stmt->fetchColumn();
-      }
+      $stmt = $this->db->prepare("SELECT COUNT(*) FROM graduates WHERE shiur_year IN ($placeholders) AND deleted_at IS NULL");
+      $stmt->execute($shiurs);
+
+      $stats['myGraduates'] = (int) $stmt->fetchColumn();
     }
 
     Response::json(['stats' => $stats]);

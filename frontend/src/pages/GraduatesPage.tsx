@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { graduatesService } from "@/services/graduatesService";
 import type { Graduate } from "@shared/types";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { GraduateMobileCard } from "@/components/graduates/GraduateMobileCard";
 import { GraduatesImportDialog } from "@/components/graduates/GraduatesImportDialog";
 import { ProfileCompletion } from "@/components/graduates/ProfileCompletion";
+import { HebrewYearCombobox } from "@/components/users/HebrewYearCombobox";
 import { useNavigate } from "react-router";
 import {
   IconPlus,
@@ -16,7 +18,6 @@ import {
   IconPencil,
   IconTrash,
   IconEye,
-  IconFilter,
   IconDotsVertical,
   IconFileImport,
 } from "@tabler/icons-react";
@@ -30,13 +31,13 @@ import {
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
 export default function GraduatesPage() {
   const { can, user, isShiurManager } = usePermissions();
   const navigate = useNavigate();
+  useDocumentTitle("ניהול בוגרים");
 
   // State
   const [graduates, setGraduates] = useState<Graduate[]>([]);
@@ -46,9 +47,13 @@ export default function GraduatesPage() {
 
   // Filters
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [shiurYearFilter, setShiurYearFilter] = useState("");
+  const [shiurYearFilter, setShiurYearFilter] = useState<string[]>([]);
+  const [availableYears, setAvailableYears] = useState<
+    { shiur_year: string; count: number }[]
+  >([]);
 
   // Dialogs
   const [graduateToDelete, setGraduateToDelete] = useState<Graduate | null>(
@@ -58,12 +63,17 @@ export default function GraduatesPage() {
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   // const [isDeleting, setIsDeleting] = useState(false);
 
-  // Quick Filters for Shiur Manager
+  // Fetch available years on mount
   useEffect(() => {
-    // If Shiur Manager manages only one year, defaulting filter might be nice,
-    // but requirements say they can see all appointed years + orphans.
-    // Let's leave filter open but restrict data via service if backend enforces it (service mocks it).
-  }, []);
+    graduatesService
+      .getGraduateYears()
+      .then((years) => {
+        // API returns { shiur_year: string, count: number }
+        // Component expects { shiur_year: string, count: number }
+        setAvailableYears(years);
+      })
+      .catch(console.error);
+  }, [refreshKey]);
 
   // Debounce search
   useEffect(() => {
@@ -83,9 +93,9 @@ export default function GraduatesPage() {
         // Logic for "My Shiurs" filtering is handled in service mock if we pass params
         const response = await graduatesService.getGraduates({
           page,
-          pageSize: 20,
+          pageSize,
           search: debouncedSearch,
-          shiurYear: shiurYearFilter ? shiurYearFilter : undefined,
+          shiurYear: shiurYearFilter.length > 0 ? shiurYearFilter : undefined,
           myShiurs: isShiurManager ? user?.shiurs : undefined, // Service mock handles this logic
         });
         if (!ignore) {
@@ -104,27 +114,40 @@ export default function GraduatesPage() {
     return () => {
       ignore = true;
     };
-  }, [page, debouncedSearch, shiurYearFilter, isShiurManager, refreshKey]);
+  }, [
+    page,
+    pageSize,
+    debouncedSearch,
+    shiurYearFilter,
+    isShiurManager,
+    refreshKey,
+  ]);
 
   // Handlers
-  const handleEdit = (graduate: Graduate) => {
-    navigate(`/graduates/${graduate.id}/edit`);
-  };
+  const handleEdit = useCallback(
+    (graduate: Graduate) => {
+      navigate(`/graduates/${graduate.id}/edit`);
+    },
+    [navigate],
+  );
 
-  const handleAdd = () => {
+  const handleAdd = useCallback(() => {
     navigate("/graduates/new");
-  };
+  }, [navigate]);
 
-  const handleView = (graduate: Graduate) => {
-    navigate(`/graduates/${graduate.id}`);
-  };
+  const handleView = useCallback(
+    (graduate: Graduate) => {
+      navigate(`/graduates/${graduate.id}`);
+    },
+    [navigate],
+  );
 
-  const handleDeleteClick = (graduate: Graduate) => {
+  const handleDeleteClick = useCallback((graduate: Graduate) => {
     setGraduateToDelete(graduate);
     setIsDeleteDialogOpen(true);
-  };
+  }, []);
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = useCallback(async () => {
     if (graduateToDelete) {
       // setIsDeleting(true);
       await graduatesService.deleteGraduate(graduateToDelete.id);
@@ -133,49 +156,63 @@ export default function GraduatesPage() {
       setGraduateToDelete(null);
       setRefreshKey((prev) => prev + 1);
     }
-  };
+  }, [graduateToDelete]);
 
   // Permission Checks helpers using hook
   const canCreate = can("create", "graduates");
 
-  const columns = [
-    {
-      header: "שם מלא",
-      cell: (g: Graduate) => (
-        <div className="font-medium">
-          {g.first_name} {g.last_name}
-        </div>
-      ),
-    },
-    {
-      header: "פלאפון",
-      accessorKey: "phone" as keyof Graduate,
-    },
-    {
-      header: "עיר",
-      accessorKey: "city" as keyof Graduate,
-    },
-    {
-      header: "מחזור",
-      accessorKey: "shiur_year" as keyof Graduate,
-      cell: (g: Graduate) => g.shiur_year || "ללא מחזור",
-    },
-    {
-      header: "סטטוס",
-      cell: (g: Graduate) => <ProfileCompletion graduate={g} />,
-    },
-    {
-      header: "פעולות",
-      cell: (g: Graduate) => {
-        // Permission check for SPECIFIC graduate
-        const canEdit = can("update", "graduates", g);
-        const canDelete = can("delete", "graduates"); // Usually super_admin only
+  const mobileRenderer = useCallback(
+    (graduate: Graduate) => (
+      <GraduateMobileCard
+        graduate={graduate}
+        onEdit={handleEdit}
+        onView={handleView}
+        onDelete={can("delete", "graduates") ? handleDeleteClick : undefined} // Only pass if can delete
+        canEdit={can("update", "graduates", graduate)}
+        canDelete={can("delete", "graduates")}
+      />
+    ),
+    [handleEdit, handleView, handleDeleteClick, can],
+  );
 
-        return (
-          <>
-            {/* Desktop View - Buttons with Tooltips */}
-            <div className="hidden md:flex justify-end gap-2">
-              <TooltipProvider>
+  const columns = useMemo(
+    () => [
+      {
+        header: "שם מלא",
+        cell: (g: Graduate) => (
+          <div className="font-medium">
+            {g.first_name} {g.last_name}
+          </div>
+        ),
+      },
+      {
+        header: "פלאפון",
+        accessorKey: "phone" as keyof Graduate,
+      },
+      {
+        header: "עיר",
+        accessorKey: "city" as keyof Graduate,
+      },
+      {
+        header: "מחזור",
+        accessorKey: "shiur_year" as keyof Graduate,
+        cell: (g: Graduate) => g.shiur_year || "ללא מחזור",
+      },
+      {
+        header: "סטטוס",
+        cell: (g: Graduate) => <ProfileCompletion graduate={g} />,
+      },
+      {
+        header: "פעולות",
+        cell: (g: Graduate) => {
+          // Permission check for SPECIFIC graduate
+          const canEdit = can("update", "graduates", g);
+          const canDelete = can("delete", "graduates"); // Usually super_admin only
+
+          return (
+            <>
+              {/* Desktop View - Buttons with Tooltips */}
+              <div className="hidden md:flex justify-end gap-2">
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
@@ -225,43 +262,44 @@ export default function GraduatesPage() {
                     </TooltipContent>
                   </Tooltip>
                 )}
-              </TooltipProvider>
-            </div>
+              </div>
 
-            {/* Mobile View - Dropdown Menu */}
-            <div className="flex md:hidden justify-end">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <IconDotsVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>פעולות</DropdownMenuLabel>
-                  <DropdownMenuItem onClick={() => handleView(g)}>
-                    <IconEye className="mr-2 h-4 w-4" /> צפייה
-                  </DropdownMenuItem>
-                  {canEdit && (
-                    <DropdownMenuItem onClick={() => handleEdit(g)}>
-                      <IconPencil className="mr-2 h-4 w-4" /> עריכה
+              {/* Mobile View - Dropdown Menu */}
+              <div className="flex md:hidden justify-end">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                      <IconDotsVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>פעולות</DropdownMenuLabel>
+                    <DropdownMenuItem onClick={() => handleView(g)}>
+                      <IconEye className="mr-2 h-4 w-4" /> צפייה
                     </DropdownMenuItem>
-                  )}
-                  {canDelete && (
-                    <DropdownMenuItem
-                      onClick={() => handleDeleteClick(g)}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <IconTrash className="mr-2 h-4 w-4" /> מחיקה
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </>
-        );
+                    {canEdit && (
+                      <DropdownMenuItem onClick={() => handleEdit(g)}>
+                        <IconPencil className="mr-2 h-4 w-4" /> עריכה
+                      </DropdownMenuItem>
+                    )}
+                    {canDelete && (
+                      <DropdownMenuItem
+                        onClick={() => handleDeleteClick(g)}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <IconTrash className="mr-2 h-4 w-4" /> מחיקה
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </>
+          );
+        },
       },
-    },
-  ];
+    ],
+    [handleView, handleEdit, handleDeleteClick, can],
+  );
 
   return (
     <div className="space-y-6">
@@ -299,17 +337,22 @@ export default function GraduatesPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <div className="w-full sm:w-48">
-          <div className="relative">
-            <IconFilter className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="סינון לפי מחזור (לדוגמה: נח)"
-              className="pr-9"
-              value={shiurYearFilter}
-              onChange={(e) => setShiurYearFilter(e.target.value)}
-            />
-          </div>
+        <div className="w-full sm:w-64">
+          <HebrewYearCombobox
+            value={
+              Array.isArray(shiurYearFilter)
+                ? shiurYearFilter
+                : shiurYearFilter
+                  ? [shiurYearFilter]
+                  : []
+            }
+            onChange={(val) => {
+              setShiurYearFilter(val as string[]);
+              setPage(1);
+            }}
+            multiple={true}
+            items={availableYears}
+          />
         </div>
       </div>
 
@@ -318,21 +361,15 @@ export default function GraduatesPage() {
         columns={columns}
         total={total}
         page={page}
-        pageSize={20}
+        pageSize={pageSize}
         onPageChange={setPage}
+        onPageSizeChange={(newSize) => {
+          setPageSize(newSize);
+          setPage(1);
+        }}
         isLoading={loading}
-        mobileRenderer={(graduate) => (
-          <GraduateMobileCard
-            graduate={graduate}
-            onEdit={handleEdit}
-            onView={handleView}
-            onDelete={
-              can("delete", "graduates") ? handleDeleteClick : undefined
-            } // Only pass if can delete
-            canEdit={can("update", "graduates", graduate)}
-            canDelete={can("delete", "graduates")}
-          />
-        )}
+        mobileRenderer={mobileRenderer}
+        totalLabel="בוגרים"
       />
 
       <ConfirmDialog

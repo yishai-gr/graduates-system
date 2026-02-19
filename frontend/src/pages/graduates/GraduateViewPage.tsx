@@ -17,6 +17,7 @@ import {
 } from "@tabler/icons-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { formatHebrewDate } from "@/lib/dateUtils";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function GraduateViewPage() {
   const { id } = useParams();
@@ -24,6 +25,10 @@ export default function GraduateViewPage() {
   const { can } = usePermissions();
 
   const [graduate, setGraduate] = useState<Graduate | null>(null);
+
+  useDocumentTitle(
+    graduate ? `${graduate.first_name} ${graduate.last_name}` : "פרטי בוגר",
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 

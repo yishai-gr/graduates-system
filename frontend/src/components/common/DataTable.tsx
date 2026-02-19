@@ -1,3 +1,4 @@
+import { memo } from "react";
 import {
   Table,
   TableBody,
@@ -6,9 +7,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
 import { NoResults } from "@/components/common/NoResults";
-import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
+import { PaginationControls } from "@/components/common/PaginationControls";
+import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 
 interface Column<T> {
   header: string;
@@ -23,31 +24,45 @@ interface DataTableProps<T> {
   page: number;
   pageSize: number;
   onPageChange: (newPage: number) => void;
+  onPageSizeChange?: (newPageSize: number) => void;
   isLoading?: boolean;
   mobileRenderer?: (item: T) => React.ReactNode;
+  totalLabel?: string;
 }
 
-export function DataTable<T extends { id: string | number }>({
+function DataTableComponent<T extends { id: string | number }>({
   data,
   columns,
   total,
   page,
   pageSize,
   onPageChange,
+  onPageSizeChange,
   isLoading,
   mobileRenderer,
+  totalLabel,
 }: DataTableProps<T>) {
   const totalPages = Math.ceil(total / pageSize);
 
   return (
     <div className="space-y-4">
+      {/* Top Pagination Controls */}
+      <PaginationControls
+        currentPage={page}
+        totalPages={totalPages}
+        total={total}
+        pageSize={pageSize}
+        onPageChange={onPageChange}
+        onPageSizeChange={onPageSizeChange}
+        isLoading={isLoading}
+        totalLabel={totalLabel}
+      />
+
       {/* Mobile Card View */}
       {mobileRenderer && (
         <div className="grid gap-4 md:hidden">
           {isLoading ? (
-            <div className="text-center py-8 text-muted-foreground">
-              טוען נתונים...
-            </div>
+            <LoadingSpinner className="py-8" />
           ) : data.length === 0 ? (
             <NoResults />
           ) : (
@@ -77,7 +92,7 @@ export function DataTable<T extends { id: string | number }>({
                   colSpan={columns.length}
                   className="h-24 text-center"
                 >
-                  טוען נתונים...
+                  <LoadingSpinner />
                 </TableCell>
               </TableRow>
             ) : data.length === 0 ? (
@@ -108,31 +123,19 @@ export function DataTable<T extends { id: string | number }>({
         </Table>
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-end space-x-2 space-x-reverse">
-          <div className="text-sm text-muted-foreground ml-auto pl-2">
-            עמוד {page} מתוך {totalPages} ({total} רשומות)
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onPageChange(page - 1)}
-            disabled={page <= 1 || isLoading}
-          >
-            <IconChevronRight className="h-4 w-4" />
-            הקודם
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onPageChange(page + 1)}
-            disabled={page >= totalPages || isLoading}
-          >
-            הבא
-            <IconChevronLeft className="h-4 w-4" />
-          </Button>
-        </div>
-      )}
+      {/* Bottom Pagination Controls */}
+      <PaginationControls
+        currentPage={page}
+        totalPages={totalPages}
+        total={total}
+        pageSize={pageSize}
+        onPageChange={onPageChange}
+        onPageSizeChange={onPageSizeChange}
+        isLoading={isLoading}
+        totalLabel={totalLabel}
+      />
     </div>
   );
 }
+
+export const DataTable = memo(DataTableComponent) as typeof DataTableComponent;

@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, memo } from "react";
 import type { Graduate } from "@shared/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,6 @@ import {
   IconTrash,
   IconSchool,
   IconPhone,
-  IconMapPin,
 } from "@tabler/icons-react";
 import { ProfileCompletion } from "./ProfileCompletion";
 import { motion } from "framer-motion";
@@ -30,7 +29,7 @@ interface GraduateMobileCardProps {
   canDelete: boolean;
 }
 
-export function GraduateMobileCard({
+export const GraduateMobileCard = memo(function GraduateMobileCard({
   graduate,
   onEdit,
   onView,
@@ -100,7 +99,7 @@ export function GraduateMobileCard({
               We need to ensure Card background is set.
               Shadcn Card has bg-card.
           */}
-          <div className="flex flex-col gap-1 pointer-events-none w-full overflow-hidden">
+          <div className="flex flex-col gap-1 pointer-events-none flex-1 min-w-0 overflow-hidden">
             <div className="font-bold text-base truncate">
               {graduate.first_name} {graduate.last_name}
             </div>
@@ -112,12 +111,6 @@ export function GraduateMobileCard({
                   <span>{graduate.shiur_year}</span>
                 </div>
               )}
-              {graduate.city && (
-                <div className="flex items-center gap-1 shrink-0 truncate max-w-[80px]">
-                  <IconMapPin size={12} />
-                  <span className="truncate">{graduate.city}</span>
-                </div>
-              )}
               {graduate.phone && (
                 <div className="flex items-center gap-1 shrink-0">
                   <IconPhone size={12} />
@@ -127,7 +120,7 @@ export function GraduateMobileCard({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <ProfileCompletion graduate={graduate} />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -175,4 +168,4 @@ export function GraduateMobileCard({
       </motion.div>
     </div>
   );
-}
+});

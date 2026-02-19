@@ -3,9 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { IconUsers, IconSchool, IconUserCheck } from "@tabler/icons-react";
 import { useAuth } from "@/context/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { ViewsService } from "@/services/viewsService";
 import { Skeleton } from "@/components/ui/skeleton";
-// import { HebrewDatePickerDemo } from "@/components/hebrew-calendar-demo";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -35,6 +35,8 @@ export default function Dashboard() {
     }
     fetchStats();
   }, []);
+
+  useDocumentTitle("לוח בקרה");
 
   return (
     <div className="space-y-6">

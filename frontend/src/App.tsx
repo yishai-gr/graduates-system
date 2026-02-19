@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from "react-router";
 import { AuthProvider } from "@/context/AuthContext";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { IconLoader } from "@tabler/icons-react";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 // Lazy load pages
 const LoginPage = lazy(() => import("@/pages/Login"));
@@ -34,35 +35,37 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
+        <TooltipProvider>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
 
-            <Route element={<MainLayout />}>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/users" element={<UsersPage />} />
-              <Route path="/users/new" element={<UserFormPage />} />
-              <Route path="/users/:id" element={<UserViewPage />} />
-              <Route path="/users/:id/edit" element={<UserFormPage />} />
-              <Route
-                path="/users/:id/password"
-                element={<ChangePasswordPage />}
-              />
+              <Route element={<MainLayout />}>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/users" element={<UsersPage />} />
+                <Route path="/users/new" element={<UserFormPage />} />
+                <Route path="/users/:id" element={<UserViewPage />} />
+                <Route path="/users/:id/edit" element={<UserFormPage />} />
+                <Route
+                  path="/users/:id/password"
+                  element={<ChangePasswordPage />}
+                />
 
-              <Route path="/graduates" element={<GraduatesPage />} />
-              <Route path="/graduates/new" element={<GraduateFormPage />} />
-              <Route path="/graduates/:id" element={<GraduateViewPage />} />
-              <Route
-                path="/graduates/:id/edit"
-                element={<GraduateFormPage />}
-              />
+                <Route path="/graduates" element={<GraduatesPage />} />
+                <Route path="/graduates/new" element={<GraduateFormPage />} />
+                <Route path="/graduates/:id" element={<GraduateViewPage />} />
+                <Route
+                  path="/graduates/:id/edit"
+                  element={<GraduateFormPage />}
+                />
 
-              <Route path="/unauthorized" element={<UnauthorizedPage />} />
-              {/* Fallback */}
-              <Route path="*" element={<div>404 - עמוד לא נמצא</div>} />
-            </Route>
-          </Routes>
-        </Suspense>
+                <Route path="/unauthorized" element={<UnauthorizedPage />} />
+                {/* Fallback */}
+                <Route path="*" element={<div>404 - עמוד לא נמצא</div>} />
+              </Route>
+            </Routes>
+          </Suspense>
+        </TooltipProvider>
       </AuthProvider>
     </BrowserRouter>
   );

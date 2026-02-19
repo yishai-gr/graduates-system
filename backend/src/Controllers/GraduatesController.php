@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Core\Response;
+use App\Middleware\AuthMiddleware;
 use PDO;
 
 class GraduatesController extends BaseController
@@ -10,11 +11,16 @@ class GraduatesController extends BaseController
 
   public function getAll()
   {
+    $user = AuthMiddleware::authenticate();
+    $role = $user['role'] ?? 'user';
+    $isShiurManager = $role === 'shiur_manager';
+    $managerShiurs = $user['shiurs'] ?? [];
+
     // Params
     $page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
     $limit = isset($_GET['limit']) ? (int) $_GET['limit'] : 20;
     $search = $_GET['search'] ?? '';
-    $shiurYear = $_GET['shiur_year'] ?? '';
+    $shiurYear = $_GET['shiur_year'] ?? ''; // Filter from UI
     $sortBy = $_GET['sort_by'] ?? 'last_name';
     $order = isset($_GET['order']) && strtolower($_GET['order']) === 'desc' ? 'DESC' : 'ASC';
 
@@ -23,6 +29,28 @@ class GraduatesController extends BaseController
     // Base Query
     $sql = "SELECT * FROM graduates WHERE deleted_at IS NULL";
     $params = [];
+
+    // Apply Shiur restrictions for managers
+    if ($isShiurManager) {
+      if (empty($managerShiurs)) {
+        // Manager with no assigned shiurs sees nothing
+        echo json_encode([
+          'data' => [],
+          'meta' => ['total' => 0, 'page' => $page, 'limit' => $limit]
+        ]);
+        return;
+      }
+
+      // Create named placeholders for IN clause: :m_shiur_0, :m_shiur_1...
+      $inParams = [];
+      foreach ($managerShiurs as $index => $year) {
+        $key = "m_shiur_$index";
+        $inParams[] = ":$key";
+        $params[$key] = $year;
+      }
+      $inClause = implode(',', $inParams);
+      $sql .= " AND shiur_year IN ($inClause)";
+    }
 
     // Filters
     if ($search) {
@@ -33,8 +61,16 @@ class GraduatesController extends BaseController
     }
 
     if ($shiurYear) {
-      $sql .= " AND shiur_year = :shiur_year";
-      $params['shiur_year'] = $shiurYear;
+      // Support comma-separated values for multi-select
+      $years = explode(',', $shiurYear);
+      $inParams = [];
+      foreach ($years as $index => $year) {
+        $key = "shiur_year_$index";
+        $inParams[] = ":$key";
+        $params[$key] = trim($year);
+      }
+      $inClause = implode(',', $inParams);
+      $sql .= " AND shiur_year IN ($inClause)";
     }
 
     // Count Total
@@ -65,17 +101,50 @@ class GraduatesController extends BaseController
 
     $json = json_encode([
       'data' => $graduates,
-      'meta' => [
-        'total' => (int) $total,
-        'page' => $page,
-        'limit' => $limit
-      ]
+      'total' => (int) $total,
+      'page' => $page,
+      'pageSize' => $limit
     ]);
 
     if ($json === false) {
       Response::serverError('JSON Encode Error: ' . json_last_error_msg());
     }
     echo $json;
+  }
+
+  public function getYears()
+  {
+    $user = AuthMiddleware::authenticate();
+    $role = $user['role'] ?? 'user';
+    $isShiurManager = $role === 'shiur_manager';
+    $managerShiurs = $user['shiurs'] ?? [];
+
+    $sql = "SELECT shiur_year, COUNT(*) as count FROM graduates WHERE deleted_at IS NULL";
+    $params = [];
+
+    if ($isShiurManager) {
+      if (empty($managerShiurs)) {
+        Response::json([]);
+        return;
+      }
+
+      $inParams = [];
+      foreach ($managerShiurs as $index => $year) {
+        $key = "m_shiur_$index";
+        $inParams[] = ":$key";
+        $params[$key] = $year;
+      }
+      $inClause = implode(',', $inParams);
+      $sql .= " AND shiur_year IN ($inClause)";
+    }
+
+    $sql .= " GROUP BY shiur_year ORDER BY shiur_year DESC";
+
+    $stmt = $this->db->prepare($sql);
+    $stmt->execute($params);
+    $years = $stmt->fetchAll();
+
+    Response::json($years);
   }
 
   public function getById($id)
@@ -139,6 +208,12 @@ class GraduatesController extends BaseController
       }
     }
 
+    if (!empty($data['shiur_year'])) {
+      if (!$this->validateHebrewYear($data['shiur_year'])) {
+        Response::validationError('shiur_year', 'Invalid Hebrew year format');
+      }
+    }
+
     $fields = [];
     $placeholders = [];
     $params = [];
@@ -198,6 +273,12 @@ class GraduatesController extends BaseController
       $data['home_phone'] = $this->normalizePhone($data['home_phone']);
       if (!$this->validatePhone($data['home_phone'])) {
         Response::validationError('home_phone', 'Phone number must be 9 or 10 digits');
+      }
+    }
+
+    if (isset($data['shiur_year']) && $data['shiur_year'] !== '') {
+      if (!$this->validateHebrewYear($data['shiur_year'])) {
+        Response::validationError('shiur_year', 'Invalid Hebrew year format');
       }
     }
 

@@ -1,9 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router";
 import { IconLock } from "@tabler/icons-react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function UnauthorizedPage() {
   const navigate = useNavigate();
+  useDocumentTitle("אין הרשאה");
 
   return (
     <div className="flex h-[80dvh] flex-col items-center justify-center gap-4 text-center">

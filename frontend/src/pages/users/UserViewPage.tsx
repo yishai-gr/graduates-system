@@ -12,6 +12,7 @@ import {
   IconLoader,
 } from "@tabler/icons-react";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function UserViewPage() {
   const { id } = useParams();
@@ -21,6 +22,8 @@ export default function UserViewPage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  useDocumentTitle(user ? `${user.firstName} ${user.lastName}` : "פרטי משתמש");
 
   useEffect(() => {
     // Redirect if not admin

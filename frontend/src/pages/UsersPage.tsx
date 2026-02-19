@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { usersService } from "@/services/usersService";
 import type { User } from "@shared/types";
 import {
@@ -12,7 +13,6 @@ import {
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
@@ -35,6 +35,7 @@ import { useNavigate } from "react-router";
 export default function UsersPage() {
   const { isSuperAdmin } = usePermissions();
   const navigate = useNavigate();
+  useDocumentTitle("ניהול משתמשים");
 
   // State
   const [users, setUsers] = useState<User[]>([]);
@@ -43,6 +44,7 @@ export default function UsersPage() {
 
   // Filters
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
@@ -72,7 +74,7 @@ export default function UsersPage() {
     try {
       const response = await usersService.getUsers({
         page,
-        pageSize: 10,
+        pageSize,
         search: debouncedSearch,
       });
       setUsers(response.data);
@@ -86,41 +88,69 @@ export default function UsersPage() {
     if (isSuperAdmin) {
       fetchData();
     }
-  }, [page, debouncedSearch, isSuperAdmin]);
+  }, [page, pageSize, debouncedSearch, isSuperAdmin]);
 
   // Handlers
-  const handleEdit = (user: User) => {
-    navigate(`/users/${user.id}/edit`);
-  };
+  const handleEdit = useCallback(
+    (user: User) => {
+      navigate(`/users/${user.id}/edit`);
+    },
+    [navigate],
+  );
 
-  const handleView = (user: User) => {
-    navigate(`/users/${user.id}`);
-  };
+  const handleView = useCallback(
+    (user: User) => {
+      navigate(`/users/${user.id}`);
+    },
+    [navigate],
+  );
 
-  const handleDeleteClick = (user: User) => {
+  const handleChangePassword = useCallback(
+    (user: User) => {
+      navigate(`/users/${user.id}/password`);
+    },
+    [navigate],
+  );
+
+  const handleDeleteClick = useCallback((user: User) => {
     setUserToDelete(user);
     setIsDeleteDialogOpen(true);
-  };
+  }, []);
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = useCallback(async () => {
     if (userToDelete) {
       await usersService.deleteUser(userToDelete.id);
       setIsDeleteDialogOpen(false);
       setUserToDelete(null);
       fetchData();
     }
-  };
+  }, [userToDelete]); // Note: fetchData needs to be stable or in dep array.
+
+  const mobileRenderer = useCallback(
+    (user: User) => (
+      <UserMobileCard
+        user={user}
+        onEdit={handleEdit}
+        onView={handleView}
+        onDelete={handleDeleteClick}
+        onChangePassword={handleChangePassword}
+        canEdit={true}
+        canDelete={true}
+      />
+    ),
+    [handleEdit, handleView, handleDeleteClick, handleChangePassword],
+  );
 
   if (!isSuperAdmin) return null;
 
-  const columns = [
-    {
-      header: "שם מלא",
-      cell: (user: User) => (
-        <div className="font-medium flex items-center gap-2">
-          {user.firstName} {user.lastName}
-          {!user.passwordChanged && (
-            <TooltipProvider>
+  const columns = useMemo(
+    () => [
+      {
+        header: "שם מלא",
+        cell: (user: User) => (
+          <div className="font-medium flex items-center gap-2">
+            {user.firstName} {user.lastName}
+            {!user.passwordChanged && (
               <Tooltip>
                 <TooltipTrigger>
                   <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
@@ -129,51 +159,51 @@ export default function UsersPage() {
                   <p>למשתמש זה לא הוגדרה סיסמה</p>
                 </TooltipContent>
               </Tooltip>
-            </TooltipProvider>
-          )}
-        </div>
-      ),
-    },
-    {
-      header: "אימייל",
-      accessorKey: "email" as keyof User,
-    },
-    {
-      header: "תפקיד",
-      cell: (user: User) => (
-        <span
-          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-            user.role === "super_admin"
-              ? "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300"
-              : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
-          }`}
-        >
-          {user.role === "super_admin" ? (
-            <>
-              <IconShieldLock className="ml-1 h-3 w-3" /> מנהל ראשי
-            </>
-          ) : (
-            <>
-              <IconUserEdit className="ml-1 h-3 w-3" /> אחראי שיעור
-            </>
-          )}
-        </span>
-      ),
-    },
-    {
-      header: "מחזורים",
-      cell: (user: User) =>
-        user.role === "shiur_manager" && user.shiurs?.length
-          ? user.shiurs.join(", ")
-          : "-",
-    },
-    {
-      header: "פעולות",
-      cell: (user: User) => (
-        <>
-          {/* Desktop View - Buttons with Tooltips */}
-          <div className="hidden md:flex justify-end gap-2">
-            <TooltipProvider>
+            )}
+          </div>
+        ),
+      },
+      {
+        header: "אימייל",
+        accessorKey: "email" as keyof User,
+      },
+      {
+        header: "תפקיד",
+        cell: (user: User) => (
+          <span
+            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+              user.role === "super_admin"
+                ? "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300"
+                : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+            }`}
+          >
+            {user.role === "super_admin" ? (
+              <>
+                <IconShieldLock className="ml-1 h-3 w-3" /> מנהל ראשי
+              </>
+            ) : (
+              <>
+                <IconUserEdit className="ml-1 h-3 w-3" /> אחראי שיעור
+              </>
+            )}
+          </span>
+        ),
+      },
+      {
+        header: "מחזורים",
+        cell: (user: User) =>
+          user.role === "shiur_manager" &&
+          Array.isArray(user.shiurs) &&
+          user.shiurs.length > 0
+            ? user.shiurs.join(", ")
+            : "-",
+      },
+      {
+        header: "פעולות",
+        cell: (user: User) => (
+          <>
+            {/* Desktop View - Buttons with Tooltips */}
+            <div className="hidden md:flex justify-end gap-2">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -239,50 +269,51 @@ export default function UsersPage() {
                   <p>מחיקה</p>
                 </TooltipContent>
               </Tooltip>
-            </TooltipProvider>
-          </div>
+            </div>
 
-          {/* Mobile View - Dropdown Menu */}
-          <div className="flex md:hidden justify-end">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <IconDotsVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-auto">
-                <DropdownMenuLabel>פעולות</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => handleView(user)}>
-                  <IconEye className="mr-2 h-4 w-4" /> צפייה
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => navigate(`/users/${user.id}/password`)}
-                  className={
-                    user.passwordChanged
-                      ? "text-destructive focus:text-destructive"
-                      : "text-accent focus:text-accent"
-                  }
-                >
-                  <IconKey className="mr-2 h-4 w-4" />{" "}
-                  {!user.passwordChanged ? "הגדרת" : "שינוי"} סיסמה
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleEdit(user)}>
-                  <IconPencil className="mr-2 h-4 w-4" /> עריכה
-                </DropdownMenuItem>
+            {/* Mobile View - Dropdown Menu */}
+            <div className="flex md:hidden justify-end">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <IconDotsVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-auto">
+                  <DropdownMenuLabel>פעולות</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => handleView(user)}>
+                    <IconEye className="mr-2 h-4 w-4" /> צפייה
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => navigate(`/users/${user.id}/password`)}
+                    className={
+                      user.passwordChanged
+                        ? "text-destructive focus:text-destructive"
+                        : "text-accent focus:text-accent"
+                    }
+                  >
+                    <IconKey className="mr-2 h-4 w-4" />{" "}
+                    {!user.passwordChanged ? "הגדרת" : "שינוי"} סיסמה
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleEdit(user)}>
+                    <IconPencil className="mr-2 h-4 w-4" /> עריכה
+                  </DropdownMenuItem>
 
-                <DropdownMenuItem
-                  onClick={() => handleDeleteClick(user)}
-                  className="text-destructive focus:text-destructive"
-                >
-                  <IconTrash className="mr-2 h-4 w-4" /> מחיקה
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </>
-      ),
-    },
-  ];
+                  <DropdownMenuItem
+                    onClick={() => handleDeleteClick(user)}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <IconTrash className="mr-2 h-4 w-4" /> מחיקה
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </>
+        ),
+      },
+    ],
+    [handleView, handleEdit, handleDeleteClick, navigate],
+  );
 
   return (
     <div className="space-y-6">
@@ -318,20 +349,15 @@ export default function UsersPage() {
         columns={columns}
         total={total}
         page={page}
-        pageSize={10}
+        pageSize={pageSize}
         onPageChange={setPage}
+        onPageSizeChange={(newSize) => {
+          setPageSize(newSize);
+          setPage(1);
+        }}
         isLoading={loading}
-        mobileRenderer={(user) => (
-          <UserMobileCard
-            user={user}
-            onEdit={handleEdit}
-            onView={handleView}
-            onDelete={handleDeleteClick}
-            onChangePassword={(user) => navigate(`/users/${user.id}/password`)}
-            canEdit={true}
-            canDelete={true}
-          />
-        )}
+        mobileRenderer={mobileRenderer}
+        totalLabel="משתמשים"
       />
 
       <ConfirmDialog

@@ -3,6 +3,7 @@
   "style": "radix-vega",
   "rsc": false,
   "tsx": true,
+  "rtl": true,
   "tailwind": {
     "config": "",
     "css": "src/index.css",

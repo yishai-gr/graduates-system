@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { graduatesService } from "@/services/graduatesService";
 import type { Graduate } from "@shared/types";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,10 @@ import {
 } from "@/lib/validation";
 import { standardSchemaValidators, useForm } from "@tanstack/react-form";
 import { z } from "zod";
+import { getHebrewYears } from "@/lib/hebrewYears";
+import { HebrewYearCombobox } from "@/components/users/HebrewYearCombobox";
+
+const validHebrewYears = new Set(getHebrewYears(100, 5).map((y) => y.value));
 
 const graduateSchema = z
   .object({
@@ -41,7 +46,12 @@ const graduateSchema = z
     email: z.union([z.literal(""), z.string().email("כתובת אימייל לא תקינה")]),
     city: z.string(),
     address: z.string(),
-    shiurYear: z.string(),
+    shiurYear: z
+      .string()
+      .refine(
+        (val) => val === "" || validHebrewYears.has(val),
+        "יש לבחור שנה עברית תקינה מהרשימה",
+      ),
     teudatZehut: z
       .string()
       .refine(
@@ -90,6 +100,8 @@ export default function GraduateFormPage() {
   const [showAdditional, setShowAdditional] = useState(false);
   const [globalError, setGlobalError] = useState("");
   const [initialLoading, setInitialLoading] = useState(!!id);
+
+  useDocumentTitle(id ? "עריכת בוגר" : "רישום בוגר");
 
   const form = useForm({
     defaultValues: {
@@ -508,14 +520,10 @@ export default function GraduateFormPage() {
             name="shiurYear"
             children={(field) => (
               <div className="grid gap-2">
-                <Label htmlFor={field.name}>מחזור (שנה/אותיות)</Label>
-                <Input
-                  id={field.name}
-                  name={field.name}
+                <Label htmlFor={field.name}>מחזור (שנה עברית)</Label>
+                <HebrewYearCombobox
                   value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                  placeholder="לדוגמה: נח, פו"
+                  onChange={(val) => field.handleChange(val as string)}
                 />
                 {field.state.meta.errors &&
                   field.state.meta.errors.length > 0 && (
