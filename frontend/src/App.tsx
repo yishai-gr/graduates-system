@@ -21,7 +21,6 @@ const GraduateViewPage = lazy(
 const UserFormPage = lazy(() => import("@/pages/users/UserFormPage"));
 const UserViewPage = lazy(() => import("@/pages/users/UserViewPage"));
 const ChangePasswordPage = lazy(() => import("@/pages/ChangePasswordPage"));
-
 // Loading component
 const PageLoader = () => (
   <div className="flex h-screen w-full items-center justify-center bg-gray-50 dark:bg-background">

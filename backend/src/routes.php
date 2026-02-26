@@ -41,6 +41,8 @@ $router->group(prefix: '/api/v1', callback: function ($router) {
       $router->group(controller: 'GraduatesController', callback: function ($router) {
         $router->get('', 'getAll');
         $router->get('/years', 'getYears');
+        $router->get('/cities', 'getCities');
+        $router->get('/field-counts', 'getFieldCounts');
         $router->get('/{id}', 'getById');
         $router->post('', 'create');
         $router->put('/{id}', 'update');

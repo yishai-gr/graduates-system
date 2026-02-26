@@ -62,7 +62,7 @@ export const GraduateMobileCard = memo(function GraduateMobileCard({
   };
 
   return (
-    <div className="relative">
+    <div className="relative overflow-x-hidden">
       {/* Background Action Layers */}
       {canEdit && (
         <div className="absolute inset-0 flex items-center justify-start rounded-lg bg-orange-100 pl-4 z-0 left-1/2 dark:bg-yellow-950">
@@ -92,7 +92,7 @@ export const GraduateMobileCard = memo(function GraduateMobileCard({
         whileTap={{ scale: 0.98 }}
         style={{ x: 0 }} // Ensure it starts at 0
       >
-        <Card className="px-4 py-2 flex-row justify-between items-center select-none border-0 shadow-none">
+        <Card className="px-4 py-2 flex-row justify-between items-center select-none shadow-sm border">
           {/* border-0 shadow-none because parent motion.div or container should handle border/shadow if we want the background to look "internal" 
               OR we keep Card style and background is strictly behind.
               If Card is opaque (bg-card), it covers the background.

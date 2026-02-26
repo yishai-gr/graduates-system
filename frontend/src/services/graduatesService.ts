@@ -1,22 +1,35 @@
-import type { Graduate, PaginatedResponse, FilterParams } from "@shared/types";
+import type { Graduate, PaginatedResponse } from "@shared/types";
 import { ApiClient } from "./apiClient";
+
+import { type TableQueryParams } from "./usersService";
 
 class GraduatesService {
   async getGraduates(
-    params: FilterParams,
+    params: TableQueryParams,
   ): Promise<PaginatedResponse<Graduate>> {
     const query = new URLSearchParams();
-    if (params.page) query.append("page", params.page.toString());
-    if (params.pageSize) query.append("limit", params.pageSize.toString());
-    if (params.search) query.append("search", params.search);
-    if (params.shiurYear) {
-      const year = Array.isArray(params.shiurYear)
-        ? params.shiurYear.join(",")
-        : params.shiurYear;
-      query.append("shiur_year", year);
+
+    if (params.pageIndex !== undefined)
+      query.append("page", String(params.pageIndex + 1));
+    else if (params.page !== undefined)
+      query.append("page", String(params.page));
+
+    if (params.pageSize) query.append("limit", String(params.pageSize));
+
+    if (params.sorting?.length) {
+      query.append("sort", params.sorting[0].id);
+      query.append("order", params.sorting[0].desc ? "desc" : "asc");
     }
-    if (params.sortBy) query.append("sort_by", params.sortBy);
-    if (params.order) query.append("order", params.order);
+
+    if (params.globalFilter) {
+      query.append("search", params.globalFilter);
+    } else if (params.search) {
+      query.append("search", params.search);
+    }
+
+    if (params.filters && params.filters.length > 0) {
+      query.append("filters", JSON.stringify(params.filters));
+    }
 
     return ApiClient.get<PaginatedResponse<Graduate>>(
       `/graduates?${query.toString()}`,
@@ -42,9 +55,41 @@ class GraduatesService {
     return ApiClient.delete<void>(`/graduates/${id}`);
   }
 
-  async getGraduateYears(): Promise<{ shiur_year: string; count: number }[]> {
+  async getGraduateYears(params?: {
+    filters?: import("./usersService").ColumnFilter[];
+    globalFilter?: string;
+  }): Promise<{ shiur_year: string; count: number }[]> {
+    const query = new URLSearchParams();
+    if (params?.filters?.length)
+      query.append("filters", JSON.stringify(params.filters));
+    if (params?.globalFilter) query.append("search", params.globalFilter);
     return ApiClient.get<{ shiur_year: string; count: number }[]>(
-      "/graduates/years",
+      `/graduates/years?${query.toString()}`,
+    );
+  }
+
+  async getGraduateCities(params?: {
+    filters?: import("./usersService").ColumnFilter[];
+    globalFilter?: string;
+  }): Promise<{ city: string; count: number }[]> {
+    const query = new URLSearchParams();
+    if (params?.filters?.length)
+      query.append("filters", JSON.stringify(params.filters));
+    if (params?.globalFilter) query.append("search", params.globalFilter);
+    return ApiClient.get<{ city: string; count: number }[]>(
+      `/graduates/cities?${query.toString()}`,
+    );
+  }
+  async getGraduateFieldCounts(params?: {
+    filters?: import("./usersService").ColumnFilter[];
+    globalFilter?: string;
+  }): Promise<Record<string, { empty: number; notEmpty: number }>> {
+    const query = new URLSearchParams();
+    if (params?.filters?.length)
+      query.append("filters", JSON.stringify(params.filters));
+    if (params?.globalFilter) query.append("search", params.globalFilter);
+    return ApiClient.get<Record<string, { empty: number; notEmpty: number }>>(
+      `/graduates/field-counts?${query.toString()}`,
     );
   }
 }

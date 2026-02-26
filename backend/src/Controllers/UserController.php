@@ -15,6 +15,20 @@ class UserController extends BaseController
     $limit = isset($_GET['limit']) ? (int) $_GET['limit'] : 20;
     $search = $_GET['search'] ?? '';
 
+    $sort = $_GET['sort'] ?? 'first_name';
+    $order = strtolower($_GET['order'] ?? 'asc');
+    if (!in_array($order, ['asc', 'desc'])) {
+      $order = 'asc';
+    }
+
+    $sortMap = [
+      'fullName' => 'first_name',
+      'email' => 'email',
+      'role' => 'role',
+      'shiurs' => 'shiurs_managed'
+    ];
+    $sortField = $sortMap[$sort] ?? 'first_name';
+
     $offset = ($page - 1) * $limit;
 
     // Base Query
@@ -23,10 +37,70 @@ class UserController extends BaseController
 
     // Search Filter
     if ($search) {
-      $sql .= " AND (first_name LIKE :search1 OR last_name LIKE :search2 OR email LIKE :search3)";
-      $params['search1'] = "%$search%";
-      $params['search2'] = "%$search%";
-      $params['search3'] = "%$search%";
+      $words = array_filter(explode(" ", trim($search)));
+      foreach ($words as $index => $word) {
+        $paramKey = "search" . $index;
+        $sql .= " AND (first_name LIKE :search_a_$index OR last_name LIKE :search_b_$index OR email LIKE :search_c_$index)";
+        $params["search_a_$index"] = "%$word%";
+        $params["search_b_$index"] = "%$word%";
+        $params["search_c_$index"] = "%$word%";
+      }
+    }
+
+    // New API Filters
+    $filtersParam = $_GET['filters'] ?? '';
+    if ($filtersParam) {
+      $filters = json_decode($filtersParam, true);
+      if (is_array($filters)) {
+        foreach ($filters as $index => $filter) {
+          $id = $filter['id'] ?? '';
+          $value = $filter['value'] ?? '';
+          $paramKey = "filter_" . $index;
+
+          // Normalize value to array for uniform handling
+          $valueArr = is_array($value) ? $value : [$value];
+          $valueArr = array_filter($valueArr, fn($v) => $v !== '' && $v !== null);
+
+          if (empty($valueArr))
+            continue;
+
+          if ($id === 'role') {
+            $inParams = [];
+            foreach ($valueArr as $rIndex => $role) {
+              $rKey = "role_{$index}_{$rIndex}";
+              $inParams[] = ":$rKey";
+              $params[$rKey] = $role;
+            }
+            $sql .= " AND role IN (" . implode(',', $inParams) . ")";
+          } else if ($id === 'fullName') {
+            if (in_array('isEmpty', $valueArr)) {
+              $sql .= " AND (first_name IS NULL OR first_name = '' OR last_name IS NULL OR last_name = '')";
+            } else if (in_array('isNotEmpty', $valueArr)) {
+              $sql .= " AND (first_name IS NOT NULL AND first_name != '' AND last_name IS NOT NULL AND last_name != '')";
+            } else {
+              $v = reset($valueArr);
+              $sql .= " AND (first_name LIKE :$paramKey OR last_name LIKE :$paramKey)";
+              $params[$paramKey] = "%$v%";
+            }
+          } else if ($id === 'email') {
+            if (in_array('isEmpty', $valueArr)) {
+              $sql .= " AND (email IS NULL OR email = '')";
+            } else if (in_array('isNotEmpty', $valueArr)) {
+              $sql .= " AND (email IS NOT NULL AND email != '')";
+            } else {
+              $v = reset($valueArr);
+              $sql .= " AND email LIKE :$paramKey";
+              $params[$paramKey] = "%$v%";
+            }
+          } else if ($id === 'shiurs') {
+            if (in_array('isEmpty', $valueArr)) {
+              $sql .= " AND (shiurs_managed IS NULL OR shiurs_managed = '[]' OR shiurs_managed = '')";
+            } else if (in_array('isNotEmpty', $valueArr)) {
+              $sql .= " AND (shiurs_managed IS NOT NULL AND shiurs_managed != '[]' AND shiurs_managed != '')";
+            }
+          }
+        }
+      }
     }
 
     // Count Total
@@ -40,7 +114,7 @@ class UserController extends BaseController
     $total = $stmt->fetchColumn();
 
     // Order & Limit
-    $sql .= " ORDER BY first_name ASC LIMIT :limit OFFSET :offset";
+    $sql .= " ORDER BY $sortField $order LIMIT :limit OFFSET :offset";
 
     $stmt = $this->db->prepare($sql);
     foreach ($params as $key => $val) {

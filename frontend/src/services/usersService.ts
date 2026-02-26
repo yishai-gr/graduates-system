@@ -1,24 +1,44 @@
 import type { User, PaginatedResponse, FilterParams } from "@shared/types";
 import { ApiClient } from "./apiClient";
 
+export interface ColumnFilter {
+  id: string; // The column ID (e.g. 'role', 'phone')
+  value: any; // The filter value (e.g. 'admin', 'isEmpty', 'isNotEmpty')
+}
+
+export interface TableQueryParams extends FilterParams {
+  pageIndex?: number;
+  pageSize?: number;
+  sorting?: { id: string; desc: boolean }[];
+  filters?: ColumnFilter[];
+  globalFilter?: string;
+}
+
 class UsersService {
-  async getUsers(params: FilterParams): Promise<PaginatedResponse<User>> {
-    // Note: The backend currently returns { data, total, page, pageSize } directly
-    // If we want to support search/filter server-side, we should pass query params.
-    // For now, let's pass them as query string.
-
+  async getUsers(params: TableQueryParams): Promise<PaginatedResponse<User>> {
     const query = new URLSearchParams();
-    if (params.page) query.append("page", params.page.toString());
-    if (params.pageSize) query.append("limit", params.pageSize.toString());
-    if (params.search) query.append("search", params.search);
-    if (params.role) query.append("role", params.role);
 
-    // NOTE: Backend currently handles "getAll" effectively.
-    // We might need to implement filtering in PHP if we want server-side filtering.
-    // However, the PHP code I wrote mainly returns ALL users.
-    // For MVP/Small scale: We can filter client side if the backend doesn't support it
-    // OR we should accept that the backend returns everything for now.
-    // Let's rely on what the backend gives us.
+    if (params.pageIndex !== undefined)
+      query.append("page", String(params.pageIndex + 1));
+    else if (params.page !== undefined)
+      query.append("page", String(params.page));
+
+    if (params.pageSize) query.append("limit", String(params.pageSize));
+
+    if (params.sorting?.length) {
+      query.append("sort", params.sorting[0].id);
+      query.append("order", params.sorting[0].desc ? "desc" : "asc");
+    }
+
+    if (params.globalFilter) {
+      query.append("search", params.globalFilter);
+    } else if (params.search) {
+      query.append("search", params.search);
+    }
+
+    if (params.filters && params.filters.length > 0) {
+      query.append("filters", JSON.stringify(params.filters));
+    }
 
     return ApiClient.get<PaginatedResponse<User>>(`/users?${query.toString()}`);
   }

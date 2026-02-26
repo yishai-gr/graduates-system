@@ -20,9 +20,19 @@ class GraduatesController extends BaseController
     $page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
     $limit = isset($_GET['limit']) ? (int) $_GET['limit'] : 20;
     $search = $_GET['search'] ?? '';
-    $shiurYear = $_GET['shiur_year'] ?? ''; // Filter from UI
-    $sortBy = $_GET['sort_by'] ?? 'last_name';
+
+    $sortByRaw = $_GET['sort'] ?? $_GET['sort_by'] ?? 'last_name';
     $order = isset($_GET['order']) && strtolower($_GET['order']) === 'desc' ? 'DESC' : 'ASC';
+
+    // Map frontend 'sort' to db columns
+    $sortMap = [
+      'fullName' => 'first_name',
+      'last_name' => 'last_name',
+      'city' => 'city',
+      'phone' => 'phone',
+      'shiur_year' => 'shiur_year'
+    ];
+    $sortBy = $sortMap[$sortByRaw] ?? 'last_name';
 
     $offset = ($page - 1) * $limit;
 
@@ -52,25 +62,76 @@ class GraduatesController extends BaseController
       $sql .= " AND shiur_year IN ($inClause)";
     }
 
-    // Filters
+    // Search Filter
     if ($search) {
-      $sql .= " AND (first_name LIKE :search1 OR last_name LIKE :search2 OR email LIKE :search3)";
-      $params['search1'] = "%$search%";
-      $params['search2'] = "%$search%";
-      $params['search3'] = "%$search%";
+      $words = array_filter(explode(" ", trim($search)));
+      foreach ($words as $index => $word) {
+        $sql .= " AND (first_name LIKE :search_a_$index OR last_name LIKE :search_b_$index OR email LIKE :search_c_$index)";
+        $params["search_a_$index"] = "%$word%";
+        $params["search_b_$index"] = "%$word%";
+        $params["search_c_$index"] = "%$word%";
+      }
     }
 
-    if ($shiurYear) {
-      // Support comma-separated values for multi-select
-      $years = explode(',', $shiurYear);
-      $inParams = [];
-      foreach ($years as $index => $year) {
-        $key = "shiur_year_$index";
-        $inParams[] = ":$key";
-        $params[$key] = trim($year);
+    // New API Filters (JSON)
+    $filtersParam = $_GET['filters'] ?? '';
+    if ($filtersParam) {
+      $filters = json_decode($filtersParam, true);
+      if (is_array($filters)) {
+        foreach ($filters as $index => $filter) {
+          $id = $filter['id'] ?? '';
+          $value = $filter['value'] ?? '';
+          $paramKey = "filter_" . $index;
+
+          // Normalize value to array for uniform handling
+          $valueArr = is_array($value) ? $value : [$value];
+          $valueArr = array_filter($valueArr, fn($v) => $v !== '' && $v !== null);
+
+          if (empty($valueArr))
+            continue;
+
+          if ($id === 'fullName') {
+            // text search – use first value only
+            $v = reset($valueArr);
+            $sql .= " AND (first_name LIKE :$paramKey OR last_name LIKE :$paramKey)";
+            $params[$paramKey] = "%$v%";
+          } else if ($id === 'phone') {
+            if (in_array('isEmpty', $valueArr)) {
+              $sql .= " AND (phone IS NULL OR phone = '')";
+            } else if (in_array('isNotEmpty', $valueArr)) {
+              $sql .= " AND (phone IS NOT NULL AND phone != '')";
+            } else {
+              $v = reset($valueArr);
+              $sql .= " AND phone LIKE :$paramKey";
+              $params[$paramKey] = "%$v%";
+            }
+          } else if ($id === 'city') {
+            if (in_array('isEmpty', $valueArr)) {
+              $sql .= " AND (city IS NULL OR city = '')";
+            } else {
+              $inParams = [];
+              foreach ($valueArr as $cIndex => $city) {
+                $cKey = "city_{$index}_{$cIndex}";
+                $inParams[] = ":$cKey";
+                $params[$cKey] = $city;
+              }
+              $sql .= " AND city IN (" . implode(',', $inParams) . ")";
+            }
+          } else if ($id === 'shiur_year') {
+            if (in_array('empty', $valueArr)) {
+              $sql .= " AND (shiur_year IS NULL OR shiur_year = '')";
+            } else {
+              $inParams = [];
+              foreach ($valueArr as $yIndex => $year) {
+                $yKey = "shiur_year_{$index}_{$yIndex}";
+                $inParams[] = ":$yKey";
+                $params[$yKey] = trim($year);
+              }
+              $sql .= " AND shiur_year IN (" . implode(',', $inParams) . ")";
+            }
+          }
+        }
       }
-      $inClause = implode(',', $inParams);
-      $sql .= " AND shiur_year IN ($inClause)";
     }
 
     // Count Total
@@ -127,15 +188,59 @@ class GraduatesController extends BaseController
         Response::json([]);
         return;
       }
-
       $inParams = [];
       foreach ($managerShiurs as $index => $year) {
         $key = "m_shiur_$index";
         $inParams[] = ":$key";
         $params[$key] = $year;
       }
-      $inClause = implode(',', $inParams);
-      $sql .= " AND shiur_year IN ($inClause)";
+      $sql .= " AND shiur_year IN (" . implode(',', $inParams) . ")";
+    }
+
+    // Apply active filters (except shiur_year itself) for faceted counts
+    $filtersParam = $_GET['filters'] ?? '';
+    $search = $_GET['search'] ?? '';
+    if ($filtersParam) {
+      $filters = json_decode($filtersParam, true);
+      if (is_array($filters)) {
+        foreach ($filters as $index => $filter) {
+          $id = $filter['id'] ?? '';
+          $value = $filter['value'] ?? '';
+          if ($id === 'shiur_year')
+            continue; // skip own filter
+          $valueArr = is_array($value) ? $value : [$value];
+          $valueArr = array_filter($valueArr, fn($v) => $v !== '' && $v !== null);
+          if (empty($valueArr))
+            continue;
+
+          if ($id === 'city') {
+            if (in_array('isEmpty', $valueArr)) {
+              $sql .= " AND (city IS NULL OR city = '')";
+            } else {
+              $inP = [];
+              foreach ($valueArr as $ci => $city) {
+                $k = "fc_city_{$index}_{$ci}";
+                $inP[] = ":$k";
+                $params[$k] = $city;
+              }
+              $sql .= " AND city IN (" . implode(',', $inP) . ")";
+            }
+          } else if ($id === 'phone') {
+            if (in_array('isEmpty', $valueArr))
+              $sql .= " AND (phone IS NULL OR phone = '')";
+            else if (in_array('isNotEmpty', $valueArr))
+              $sql .= " AND (phone IS NOT NULL AND phone != '')";
+          }
+        }
+      }
+    }
+    if ($search) {
+      $words = array_filter(explode(" ", trim($search)));
+      foreach ($words as $wi => $word) {
+        $sql .= " AND (first_name LIKE :sy_sa_$wi OR last_name LIKE :sy_sb_$wi)";
+        $params["sy_sa_$wi"] = "%$word%";
+        $params["sy_sb_$wi"] = "%$word%";
+      }
     }
 
     $sql .= " GROUP BY shiur_year ORDER BY shiur_year DESC";
@@ -145,6 +250,182 @@ class GraduatesController extends BaseController
     $years = $stmt->fetchAll();
 
     Response::json($years);
+  }
+
+  public function getCities()
+  {
+    $user = AuthMiddleware::authenticate();
+    $role = $user['role'] ?? 'user';
+    $isShiurManager = $role === 'shiur_manager';
+    $managerShiurs = $user['shiurs'] ?? [];
+
+    $sql = "SELECT city, COUNT(*) as count FROM graduates WHERE deleted_at IS NULL AND city IS NOT NULL AND city != ''";
+    $params = [];
+
+    if ($isShiurManager) {
+      if (empty($managerShiurs)) {
+        Response::json([]);
+        return;
+      }
+      $inParams = [];
+      foreach ($managerShiurs as $index => $year) {
+        $key = "m_shiur_$index";
+        $inParams[] = ":$key";
+        $params[$key] = $year;
+      }
+      $sql .= " AND shiur_year IN (" . implode(',', $inParams) . ")";
+    }
+
+    // Apply active filters (except city itself) for faceted counts
+    $filtersParam = $_GET['filters'] ?? '';
+    $search = $_GET['search'] ?? '';
+    if ($filtersParam) {
+      $filters = json_decode($filtersParam, true);
+      if (is_array($filters)) {
+        foreach ($filters as $index => $filter) {
+          $id = $filter['id'] ?? '';
+          $value = $filter['value'] ?? '';
+          if ($id === 'city')
+            continue; // skip own filter
+          $valueArr = is_array($value) ? $value : [$value];
+          $valueArr = array_filter($valueArr, fn($v) => $v !== '' && $v !== null);
+          if (empty($valueArr))
+            continue;
+
+          if ($id === 'shiur_year') {
+            if (in_array('empty', $valueArr)) {
+              $sql .= " AND (shiur_year IS NULL OR shiur_year = '')";
+            } else {
+              $inP = [];
+              foreach ($valueArr as $yi => $year) {
+                $k = "fc_year_{$index}_{$yi}";
+                $inP[] = ":$k";
+                $params[$k] = trim($year);
+              }
+              $sql .= " AND shiur_year IN (" . implode(',', $inP) . ")";
+            }
+          } else if ($id === 'phone') {
+            if (in_array('isEmpty', $valueArr))
+              $sql .= " AND (phone IS NULL OR phone = '')";
+            else if (in_array('isNotEmpty', $valueArr))
+              $sql .= " AND (phone IS NOT NULL AND phone != '')";
+          }
+        }
+      }
+    }
+    if ($search) {
+      $words = array_filter(explode(" ", trim($search)));
+      foreach ($words as $wi => $word) {
+        $sql .= " AND (first_name LIKE :ci_sa_$wi OR last_name LIKE :ci_sb_$wi)";
+        $params["ci_sa_$wi"] = "%$word%";
+        $params["ci_sb_$wi"] = "%$word%";
+      }
+    }
+
+    $sql .= " GROUP BY city ORDER BY city ASC";
+
+    $stmt = $this->db->prepare($sql);
+    $stmt->execute($params);
+    $cities = $stmt->fetchAll();
+
+    Response::json($cities);
+  }
+
+  public function getFieldCounts()
+  {
+    $user = AuthMiddleware::authenticate();
+
+    // Which fields to count
+    $fields = ['phone', 'city', 'shiur_year'];
+
+    // Parse active filters and search from query
+    $filtersParam = $_GET['filters'] ?? '';
+    $search = $_GET['search'] ?? '';
+    $activeFilters = $filtersParam ? json_decode($filtersParam, true) : [];
+    if (!is_array($activeFilters))
+      $activeFilters = [];
+
+    $result = [];
+
+    foreach ($fields as $field) {
+      $baseParams = [];
+
+      // Base WHERE
+      $baseWhere = " WHERE deleted_at IS NULL";
+
+      // Apply all filters EXCEPT this field
+      foreach ($activeFilters as $fIndex => $filter) {
+        $fId = $filter['id'] ?? '';
+        $fVal = $filter['value'] ?? '';
+        if ($fId === $field)
+          continue;
+        $valueArr = is_array($fVal) ? $fVal : [$fVal];
+        $valueArr = array_filter($valueArr, fn($v) => $v !== '' && $v !== null);
+        if (empty($valueArr))
+          continue;
+
+        if ($fId === 'shiur_year') {
+          if (in_array('empty', $valueArr)) {
+            $baseWhere .= " AND (shiur_year IS NULL OR shiur_year = '')";
+          } else {
+            $inP = [];
+            foreach ($valueArr as $yi => $yr) {
+              $k = "fc_{$field}_{$fIndex}_{$yi}";
+              $inP[] = ":$k";
+              $baseParams[$k] = trim($yr);
+            }
+            $baseWhere .= " AND shiur_year IN (" . implode(',', $inP) . ")";
+          }
+        } else if ($fId === 'city') {
+          if (in_array('isEmpty', $valueArr)) {
+            $baseWhere .= " AND (city IS NULL OR city = '')";
+          } else {
+            $inP = [];
+            foreach ($valueArr as $ci => $city) {
+              $k = "fc_{$field}_{$fIndex}_{$ci}";
+              $inP[] = ":$k";
+              $baseParams[$k] = $city;
+            }
+            $baseWhere .= " AND city IN (" . implode(',', $inP) . ")";
+          }
+        } else if ($fId === 'phone') {
+          if (in_array('isEmpty', $valueArr))
+            $baseWhere .= " AND (phone IS NULL OR phone = '')";
+          else if (in_array('isNotEmpty', $valueArr))
+            $baseWhere .= " AND (phone IS NOT NULL AND phone != '')";
+        }
+      }
+
+      // Apply search
+      if ($search) {
+        $words = array_filter(explode(" ", trim($search)));
+        foreach ($words as $wi => $word) {
+          $baseWhere .= " AND (first_name LIKE :fcs_a_{$field}_{$wi} OR last_name LIKE :fcs_b_{$field}_{$wi})";
+          $baseParams["fcs_a_{$field}_{$wi}"] = "%$word%";
+          $baseParams["fcs_b_{$field}_{$wi}"] = "%$word%";
+        }
+      }
+
+      // Count empty
+      $emptyCol = $field === 'shiur_year'
+        ? "($field IS NULL OR $field = '')"
+        : "($field IS NULL OR $field = '')";
+      $stmtE = $this->db->prepare("SELECT COUNT(*) FROM graduates$baseWhere AND $emptyCol");
+      $stmtE->execute($baseParams);
+      $emptyCount = (int) $stmtE->fetchColumn();
+
+      // Count not empty
+      $notEmptyCol = $field === 'shiur_year'
+        ? "($field IS NOT NULL AND $field != '')"
+        : "($field IS NOT NULL AND $field != '')";
+      $stmtN = $this->db->prepare("SELECT COUNT(*) FROM graduates$baseWhere AND $notEmptyCol");
+      $stmtN->execute($baseParams);
+      $notEmptyCount = (int) $stmtN->fetchColumn();
+
+      $result[$field] = ['empty' => $emptyCount, 'notEmpty' => $notEmptyCount];
+    }
+
+    Response::json($result);
   }
 
   public function getById($id)

@@ -5,17 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   IconAlertCircle,
-  IconArrowRight,
   IconChevronDown,
   IconChevronUp,
   IconLoader,
 } from "@tabler/icons-react";
 import { DateInput } from "@/components/ui/date-input";
-import {
-  isValidIsraeliID,
-  isValidIsraeliPhone,
-  normalizePhone,
-} from "@/lib/validation";
+import { isValidIsraeliID, isValidIsraeliPhone } from "@/lib/validation";
 import { standardSchemaValidators, useForm } from "@tanstack/react-form";
 import { z } from "zod";
 import { getHebrewYears } from "@/lib/hebrewYears";
