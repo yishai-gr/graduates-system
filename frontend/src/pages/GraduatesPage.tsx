@@ -1,110 +1,172 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useReducer, useCallback, useRef } from "react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { graduatesService } from "@/services/graduatesService";
 import type { Graduate } from "@shared/types";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { DataTable } from "@/components/common/DataTable";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
-import { GraduateMobileCard } from "@/components/graduates/GraduateMobileCard";
 import { GraduatesImportDialog } from "@/components/graduates/GraduatesImportDialog";
-import { ProfileCompletion } from "@/components/graduates/ProfileCompletion";
-import { HebrewYearCombobox } from "@/components/users/HebrewYearCombobox";
-import { useNavigate } from "react-router";
-import {
-  IconPlus,
-  IconSearch,
-  IconPencil,
-  IconTrash,
-  IconEye,
-  IconDotsVertical,
-  IconFileImport,
-} from "@tabler/icons-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { GraduatesHeader } from "@/components/graduates/GraduatesHeader";
+import { GraduatesFilters } from "@/components/graduates/GraduatesFilters";
+import { GraduatesTable } from "@/components/graduates/GraduatesTable";
+import { useNavigate, Navigate } from "react-router";
+
+// --- State & Reducer ---
+
+interface GraduatesPageState {
+  // Data
+  graduates: Graduate[];
+  total: number;
+  loading: boolean;
+  refreshKey: number;
+  // Filters
+  page: number;
+  pageSize: number;
+  search: string;
+  debouncedSearch: string;
+  shiurYearFilter: string[];
+  availableYears: { shiur_year: string; count: number }[];
+  // Dialogs
+  graduateToDelete: Graduate | null;
+  isDeleteDialogOpen: boolean;
+  isImportDialogOpen: boolean;
+}
+
+type GraduatesPageAction =
+  | { type: "SET_DATA"; payload: { graduates: Graduate[]; total: number } }
+  | { type: "SET_LOADING"; payload: boolean }
+  | { type: "SET_PAGE"; payload: number }
+  | { type: "SET_PAGE_SIZE"; payload: number }
+  | { type: "SET_SEARCH"; payload: string }
+  | { type: "SET_DEBOUNCED_SEARCH"; payload: string }
+  | { type: "SET_SHIUR_YEAR_FILTER"; payload: string[] }
+  | {
+      type: "SET_AVAILABLE_YEARS";
+      payload: { shiur_year: string; count: number }[];
+    }
+  | { type: "OPEN_DELETE_DIALOG"; payload: Graduate }
+  | { type: "CLOSE_DELETE_DIALOG" }
+  | { type: "OPEN_IMPORT_DIALOG" }
+  | { type: "CLOSE_IMPORT_DIALOG" }
+  | { type: "REFRESH_DATA" };
+
+const initialState: GraduatesPageState = {
+  graduates: [],
+  total: 0,
+  loading: false,
+  refreshKey: 0,
+  page: 1,
+  pageSize: 20,
+  search: "",
+  debouncedSearch: "",
+  shiurYearFilter: [],
+  availableYears: [],
+  graduateToDelete: null,
+  isDeleteDialogOpen: false,
+  isImportDialogOpen: false,
+};
+
+function reducer(
+  state: GraduatesPageState,
+  action: GraduatesPageAction,
+): GraduatesPageState {
+  switch (action.type) {
+    case "SET_DATA":
+      return {
+        ...state,
+        graduates: action.payload.graduates,
+        total: action.payload.total,
+        loading: false,
+      };
+    case "SET_LOADING":
+      return { ...state, loading: action.payload };
+    case "SET_PAGE":
+      return { ...state, page: action.payload };
+    case "SET_PAGE_SIZE":
+      return { ...state, pageSize: action.payload, page: 1 };
+    case "SET_SEARCH":
+      return { ...state, search: action.payload };
+    case "SET_DEBOUNCED_SEARCH":
+      return { ...state, debouncedSearch: action.payload, page: 1 };
+    case "SET_SHIUR_YEAR_FILTER":
+      return { ...state, shiurYearFilter: action.payload, page: 1 };
+    case "SET_AVAILABLE_YEARS":
+      return { ...state, availableYears: action.payload };
+    case "OPEN_DELETE_DIALOG":
+      return {
+        ...state,
+        graduateToDelete: action.payload,
+        isDeleteDialogOpen: true,
+      };
+    case "CLOSE_DELETE_DIALOG":
+      return { ...state, graduateToDelete: null, isDeleteDialogOpen: false };
+    case "OPEN_IMPORT_DIALOG":
+      return { ...state, isImportDialogOpen: true };
+    case "CLOSE_IMPORT_DIALOG":
+      return { ...state, isImportDialogOpen: false };
+    case "REFRESH_DATA":
+      return { ...state, refreshKey: state.refreshKey + 1 };
+    default:
+      return state;
+  }
+}
 
 export default function GraduatesPage() {
   const { can, user, isShiurManager } = usePermissions();
   const navigate = useNavigate();
   useDocumentTitle("ניהול בוגרים");
 
-  // State
-  const [graduates, setGraduates] = useState<Graduate[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
+  // Redirect logic moved to bottom
 
-  // Filters
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [shiurYearFilter, setShiurYearFilter] = useState<string[]>([]);
-  const [availableYears, setAvailableYears] = useState<
-    { shiur_year: string; count: number }[]
-  >([]);
+  const [state, dispatch] = useReducer(reducer, initialState);
 
-  // Dialogs
-  const [graduateToDelete, setGraduateToDelete] = useState<Graduate | null>(
-    null,
-  );
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
-  // const [isDeleting, setIsDeleting] = useState(false);
-
-  // Fetch available years on mount
+  // Fetch available years on mount/refresh
   useEffect(() => {
     graduatesService
       .getGraduateYears()
       .then((years) => {
-        // API returns { shiur_year: string, count: number }
-        // Component expects { shiur_year: string, count: number }
-        setAvailableYears(years);
+        dispatch({ type: "SET_AVAILABLE_YEARS", payload: years });
       })
       .catch(console.error);
-  }, [refreshKey]);
+  }, [state.refreshKey]);
 
-  // Debounce search
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear timer on unmount
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(search);
-      setPage(1);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [search]);
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
 
+  // Fetch data with robust cancellation handling
   useEffect(() => {
     let ignore = false;
 
     const fetchData = async () => {
-      setLoading(true);
+      dispatch({ type: "SET_LOADING", payload: true });
       try {
-        // Logic for "My Shiurs" filtering is handled in service mock if we pass params
         const response = await graduatesService.getGraduates({
-          page,
-          pageSize,
-          search: debouncedSearch,
-          shiurYear: shiurYearFilter.length > 0 ? shiurYearFilter : undefined,
-          myShiurs: isShiurManager ? user?.shiurs : undefined, // Service mock handles this logic
+          page: state.page,
+          pageSize: state.pageSize,
+          search: state.debouncedSearch,
+          shiurYear:
+            state.shiurYearFilter.length > 0
+              ? state.shiurYearFilter
+              : undefined,
+          myShiurs: isShiurManager ? user?.shiurs : undefined,
         });
         if (!ignore) {
-          setGraduates(response.data);
-          setTotal(response.total);
+          dispatch({
+            type: "SET_DATA",
+            payload: { graduates: response.data, total: response.total },
+          });
         }
-      } finally {
+      } catch (error) {
+        console.error(error);
         if (!ignore) {
-          setLoading(false);
+          dispatch({ type: "SET_LOADING", payload: false });
         }
       }
     };
@@ -115,15 +177,28 @@ export default function GraduatesPage() {
       ignore = true;
     };
   }, [
-    page,
-    pageSize,
-    debouncedSearch,
-    shiurYearFilter,
+    state.page,
+    state.pageSize,
+    state.debouncedSearch,
+    state.shiurYearFilter,
     isShiurManager,
-    refreshKey,
+    state.refreshKey,
+    user,
   ]);
 
   // Handlers
+  const handleSearchChange = useCallback((value: string) => {
+    dispatch({ type: "SET_SEARCH", payload: value });
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      dispatch({ type: "SET_DEBOUNCED_SEARCH", payload: value });
+    }, 500);
+  }, []);
+
   const handleEdit = useCallback(
     (graduate: Graduate) => {
       navigate(`/graduates/${graduate.id}/edit`);
@@ -143,244 +218,67 @@ export default function GraduatesPage() {
   );
 
   const handleDeleteClick = useCallback((graduate: Graduate) => {
-    setGraduateToDelete(graduate);
-    setIsDeleteDialogOpen(true);
+    dispatch({ type: "OPEN_DELETE_DIALOG", payload: graduate });
   }, []);
 
   const handleConfirmDelete = useCallback(async () => {
-    if (graduateToDelete) {
-      // setIsDeleting(true);
-      await graduatesService.deleteGraduate(graduateToDelete.id);
-      // setIsDeleting(false);
-      setIsDeleteDialogOpen(false);
-      setGraduateToDelete(null);
-      setRefreshKey((prev) => prev + 1);
+    if (state.graduateToDelete) {
+      await graduatesService.deleteGraduate(state.graduateToDelete.id);
+      dispatch({ type: "CLOSE_DELETE_DIALOG" });
+      dispatch({ type: "REFRESH_DATA" });
     }
-  }, [graduateToDelete]);
+  }, [state.graduateToDelete]);
 
-  // Permission Checks helpers using hook
-  const canCreate = can("create", "graduates");
-
-  const mobileRenderer = useCallback(
-    (graduate: Graduate) => (
-      <GraduateMobileCard
-        graduate={graduate}
-        onEdit={handleEdit}
-        onView={handleView}
-        onDelete={can("delete", "graduates") ? handleDeleteClick : undefined} // Only pass if can delete
-        canEdit={can("update", "graduates", graduate)}
-        canDelete={can("delete", "graduates")}
-      />
-    ),
-    [handleEdit, handleView, handleDeleteClick, can],
-  );
-
-  const columns = useMemo(
-    () => [
-      {
-        header: "שם מלא",
-        cell: (g: Graduate) => (
-          <div className="font-medium">
-            {g.first_name} {g.last_name}
-          </div>
-        ),
-      },
-      {
-        header: "פלאפון",
-        accessorKey: "phone" as keyof Graduate,
-      },
-      {
-        header: "עיר",
-        accessorKey: "city" as keyof Graduate,
-      },
-      {
-        header: "מחזור",
-        accessorKey: "shiur_year" as keyof Graduate,
-        cell: (g: Graduate) => g.shiur_year || "ללא מחזור",
-      },
-      {
-        header: "סטטוס",
-        cell: (g: Graduate) => <ProfileCompletion graduate={g} />,
-      },
-      {
-        header: "פעולות",
-        cell: (g: Graduate) => {
-          // Permission check for SPECIFIC graduate
-          const canEdit = can("update", "graduates", g);
-          const canDelete = can("delete", "graduates"); // Usually super_admin only
-
-          return (
-            <>
-              {/* Desktop View - Buttons with Tooltips */}
-              <div className="hidden md:flex justify-end gap-2">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleView(g)}
-                    >
-                      <IconEye className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>צפייה</p>
-                  </TooltipContent>
-                </Tooltip>
-
-                {canEdit && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEdit(g)}
-                      >
-                        <IconPencil className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>עריכה</p>
-                    </TooltipContent>
-                  </Tooltip>
-                )}
-
-                {canDelete && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => handleDeleteClick(g)}
-                      >
-                        <IconTrash className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>מחיקה</p>
-                    </TooltipContent>
-                  </Tooltip>
-                )}
-              </div>
-
-              {/* Mobile View - Dropdown Menu */}
-              <div className="flex md:hidden justify-end">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon">
-                      <IconDotsVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>פעולות</DropdownMenuLabel>
-                    <DropdownMenuItem onClick={() => handleView(g)}>
-                      <IconEye className="mr-2 h-4 w-4" /> צפייה
-                    </DropdownMenuItem>
-                    {canEdit && (
-                      <DropdownMenuItem onClick={() => handleEdit(g)}>
-                        <IconPencil className="mr-2 h-4 w-4" /> עריכה
-                      </DropdownMenuItem>
-                    )}
-                    {canDelete && (
-                      <DropdownMenuItem
-                        onClick={() => handleDeleteClick(g)}
-                        className="text-destructive focus:text-destructive"
-                      >
-                        <IconTrash className="mr-2 h-4 w-4" /> מחיקה
-                      </DropdownMenuItem>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </>
-          );
-        },
-      },
-    ],
-    [handleView, handleEdit, handleDeleteClick, can],
-  );
+  if (!can("read", "graduates")) {
+    return <Navigate to="/unauthorized" />;
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-          ניהול בוגרים
-        </h1>
-        <div className="flex gap-2 w-full sm:w-auto">
-          {canCreate && (
-            <Button onClick={handleAdd} className="flex-1 sm:flex-none">
-              <IconPlus className="h-4 w-4" />
-              רישום בוגר חדש
-            </Button>
-          )}
-          {can("import", "graduates") && (
-            <Button
-              variant="outline"
-              onClick={() => setIsImportDialogOpen(true)}
-              className="flex-1 sm:flex-none"
-            >
-              <IconFileImport className="h-4 w-4" />
-              ייבוא מקובץ
-            </Button>
-          )}
-        </div>
-      </div>
+      <GraduatesHeader
+        canCreate={can("create", "graduates")}
+        canImport={can("import", "graduates")}
+        onAdd={handleAdd}
+        onImport={() => dispatch({ type: "OPEN_IMPORT_DIALOG" })}
+      />
 
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <IconSearch className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="חיפוש לפי שם..."
-            className="pr-9"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        <div className="w-full sm:w-64">
-          <HebrewYearCombobox
-            value={
-              Array.isArray(shiurYearFilter)
-                ? shiurYearFilter
-                : shiurYearFilter
-                  ? [shiurYearFilter]
-                  : []
-            }
-            onChange={(val) => {
-              setShiurYearFilter(val as string[]);
-              setPage(1);
-            }}
-            multiple={true}
-            items={availableYears}
-          />
-        </div>
-      </div>
+      <GraduatesFilters
+        search={state.search}
+        onSearchChange={handleSearchChange}
+        shiurYearFilter={state.shiurYearFilter}
+        onYearFilterChange={(value) =>
+          dispatch({ type: "SET_SHIUR_YEAR_FILTER", payload: value })
+        }
+        availableYears={state.availableYears}
+      />
 
-      <DataTable
-        data={graduates}
-        columns={columns}
-        total={total}
-        page={page}
-        pageSize={pageSize}
-        onPageChange={setPage}
-        onPageSizeChange={(newSize) => {
-          setPageSize(newSize);
-          setPage(1);
-        }}
-        isLoading={loading}
-        mobileRenderer={mobileRenderer}
-        totalLabel="בוגרים"
+      <GraduatesTable
+        graduates={state.graduates}
+        total={state.total}
+        page={state.page}
+        pageSize={state.pageSize}
+        loading={state.loading}
+        onPageChange={(p) => dispatch({ type: "SET_PAGE", payload: p })}
+        onPageSizeChange={(s) =>
+          dispatch({ type: "SET_PAGE_SIZE", payload: s })
+        }
+        onView={handleView}
+        onEdit={handleEdit}
+        onDelete={handleDeleteClick}
       />
 
       <ConfirmDialog
-        open={isDeleteDialogOpen}
-        onOpenChange={setIsDeleteDialogOpen}
+        open={state.isDeleteDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) dispatch({ type: "CLOSE_DELETE_DIALOG" });
+        }}
         title="מחיקת בוגר"
         description={
           <>
             האם אתה בטוח שברצונך למחוק את הבוגר{" "}
             <strong>
-              {graduateToDelete?.first_name} {graduateToDelete?.last_name}
+              {state.graduateToDelete?.first_name}{" "}
+              {state.graduateToDelete?.last_name}
             </strong>
             ? פעולה זו אינה הפיכה.
           </>
@@ -391,9 +289,11 @@ export default function GraduatesPage() {
       />
 
       <GraduatesImportDialog
-        open={isImportDialogOpen}
-        onOpenChange={setIsImportDialogOpen}
-        onImportComplete={() => setRefreshKey((prev) => prev + 1)}
+        open={state.isImportDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) dispatch({ type: "CLOSE_IMPORT_DIALOG" });
+        }}
+        onImportComplete={() => dispatch({ type: "REFRESH_DATA" })}
       />
     </div>
   );

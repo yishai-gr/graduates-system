@@ -121,36 +121,7 @@ export default function Dashboard() {
         )}
       </div>
 
-      <div>{/* <HebrewDatePickerDemo /> */}</div>
-
-      {/* TODO: Activity Log (Mock) */}
-      {false && isSuperAdmin && (
-        <div className="space-y-4">
-          <h2 className="text-xl font-bold">פעילות אחרונה במערכת</h2>
-          <Card>
-            <CardContent className="p-4">
-              <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className="flex items-center gap-4 border-b pb-2 last:border-0 last:pb-0"
-                  >
-                    <div className="h-2 w-2 rounded-full bg-blue-500" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">
-                        משתמש X עדכן את בוגר Y
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        לפני {i * 15} דקות
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      {/* TODO: Activity Log */}
     </div>
   );
 }

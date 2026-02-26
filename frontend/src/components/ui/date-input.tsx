@@ -121,7 +121,6 @@ export function DateInput({
             <HebrewCalendar
               mode="single"
               selected={dateValue}
-              autoFocus
               onSelect={handleDateSelect}
               defaultMonth={dateValue}
               endYear={currentHYear}

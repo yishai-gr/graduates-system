@@ -16,35 +16,29 @@ class ImportService {
       headers["Authorization"] = `Bearer ${token}`;
     }
 
-    const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
+    const API_URL =
+      import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
 
-    try {
-      const response = await fetch(
-        `${API_URL}/graduates/import/preview`,
-        {
-          method: "POST",
-          body: formData,
-          headers, // Remove Content-Type to let browser set it with boundary
-        }
-      );
+    const response = await fetch(`${API_URL}/graduates/import/preview`, {
+      method: "POST",
+      body: formData,
+      headers, // Remove Content-Type to let browser set it with boundary
+    });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData?.error || "Failed to preview import"
-        );
-      }
-
-      return response.json();
-    } catch (error) {
-      throw error;
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData?.error || "Failed to preview import");
     }
+
+    return response.json();
   }
 
-  async confirmImport(request: ImportConfirmRequest): Promise<ImportConfirmResponse> {
+  async confirmImport(
+    request: ImportConfirmRequest,
+  ): Promise<ImportConfirmResponse> {
     return ApiClient.post<ImportConfirmResponse>(
       "/graduates/import/confirm",
-      request
+      request,
     );
   }
 }

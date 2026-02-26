@@ -22,7 +22,7 @@ import {
   IconEye,
   IconKey,
 } from "@tabler/icons-react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import type { PanInfo } from "framer-motion";
 
 interface UserMobileCardProps {
@@ -89,7 +89,7 @@ export const UserMobileCard = memo(function UserMobileCard({
         </div>
       )}
 
-      <motion.div
+      <m.div
         drag="x"
         dragConstraints={{ left: 0, right: 0 }}
         dragElastic={{ left: canEdit ? 0.2 : 0, right: canDelete ? 0.2 : 0 }}
@@ -149,8 +149,10 @@ export const UserMobileCard = memo(function UserMobileCard({
 
                 {/* Stop propagation to prevent drag/tap on menu interaction */}
                 <div
+                  role="none"
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
                 >
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -213,7 +215,7 @@ export const UserMobileCard = memo(function UserMobileCard({
             </div>
           </CardHeader>
         </Card>
-      </motion.div>
+      </m.div>
     </div>
   );
 });

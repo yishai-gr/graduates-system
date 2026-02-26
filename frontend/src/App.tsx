@@ -1,4 +1,5 @@
 import { Suspense, lazy } from "react";
+import { LazyMotion, domMax } from "framer-motion";
 import { BrowserRouter, Routes, Route } from "react-router";
 import { AuthProvider } from "@/context/AuthContext";
 import { MainLayout } from "@/components/layout/MainLayout";
@@ -33,41 +34,43 @@ const PageLoader = () => (
 
 function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <TooltipProvider>
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
-              <Route path="/login" element={<LoginPage />} />
+    <LazyMotion features={domMax}>
+      <BrowserRouter>
+        <AuthProvider>
+          <TooltipProvider>
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                <Route path="/login" element={<LoginPage />} />
 
-              <Route element={<MainLayout />}>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/users" element={<UsersPage />} />
-                <Route path="/users/new" element={<UserFormPage />} />
-                <Route path="/users/:id" element={<UserViewPage />} />
-                <Route path="/users/:id/edit" element={<UserFormPage />} />
-                <Route
-                  path="/users/:id/password"
-                  element={<ChangePasswordPage />}
-                />
+                <Route element={<MainLayout />}>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/users" element={<UsersPage />} />
+                  <Route path="/users/new" element={<UserFormPage />} />
+                  <Route path="/users/:id" element={<UserViewPage />} />
+                  <Route path="/users/:id/edit" element={<UserFormPage />} />
+                  <Route
+                    path="/users/:id/password"
+                    element={<ChangePasswordPage />}
+                  />
 
-                <Route path="/graduates" element={<GraduatesPage />} />
-                <Route path="/graduates/new" element={<GraduateFormPage />} />
-                <Route path="/graduates/:id" element={<GraduateViewPage />} />
-                <Route
-                  path="/graduates/:id/edit"
-                  element={<GraduateFormPage />}
-                />
+                  <Route path="/graduates" element={<GraduatesPage />} />
+                  <Route path="/graduates/new" element={<GraduateFormPage />} />
+                  <Route path="/graduates/:id" element={<GraduateViewPage />} />
+                  <Route
+                    path="/graduates/:id/edit"
+                    element={<GraduateFormPage />}
+                  />
 
-                <Route path="/unauthorized" element={<UnauthorizedPage />} />
-                {/* Fallback */}
-                <Route path="*" element={<div>404 - עמוד לא נמצא</div>} />
-              </Route>
-            </Routes>
-          </Suspense>
-        </TooltipProvider>
-      </AuthProvider>
-    </BrowserRouter>
+                  <Route path="/unauthorized" element={<UnauthorizedPage />} />
+                  {/* Fallback */}
+                  <Route path="*" element={<div>404 - עמוד לא נמצא</div>} />
+                </Route>
+              </Routes>
+            </Suspense>
+          </TooltipProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </LazyMotion>
   );
 }
 

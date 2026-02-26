@@ -14,39 +14,44 @@ export default function ChangePasswordPage() {
   const { user: currentUser } = useAuth();
   useDocumentTitle("שינוי סיסמה");
 
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
+  const [state, setState] = useState({
+    password: "",
+    confirmPassword: "",
+    isLoading: false,
+    error: "",
+    success: false,
+  });
 
   // If no ID provided, assume current user
   const targetId = id || currentUser?.id;
+
+  const updateState = (updates: Partial<typeof state>) => {
+    setState((prev) => ({ ...prev, ...updates }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!targetId) return;
 
-    setError("");
-    setSuccess(false);
+    updateState({ error: "", success: false });
 
-    if (password !== confirmPassword) {
-      setError("הסיסמאות אינן תואמות");
+    if (state.password !== state.confirmPassword) {
+      updateState({ error: "הסיסמאות אינן תואמות" });
       return;
     }
 
-    if (password.length < 6) {
-      setError("הסיסמה חייבת להיות באורך של לפחות 6 תווים");
+    if (state.password.length < 6) {
+      updateState({ error: "הסיסמה חייבת להיות באורך של לפחות 6 תווים" });
       return;
     }
 
-    setIsLoading(true);
+    updateState({ isLoading: true });
 
     try {
       await usersService.updateUser(targetId, {
-        password: password,
+        password: state.password,
       });
-      setSuccess(true);
+      updateState({ success: true });
 
       // If it was a new user setup (logic from previous page redirect), maybe offer to go back?
       // For now, show success and button to go back.
@@ -54,9 +59,9 @@ export default function ChangePasswordPage() {
         navigate(-1);
       }, 2000);
     } catch (err: any) {
-      setError(err.message || "שגיאה בשינוי הסיסמה");
+      updateState({ error: err.message || "שגיאה בשינוי הסיסמה" });
     } finally {
-      setIsLoading(false);
+      updateState({ isLoading: false });
     }
   };
 
@@ -73,14 +78,14 @@ export default function ChangePasswordPage() {
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
+          {state.error && (
             <div className="flex items-center gap-2 rounded-md bg-destructive/15 dark:bg-destructive/25 p-3 text-sm text-destructive dark:text-destructive-foreground">
               <IconAlertCircle size={18} />
-              <span>{error}</span>
+              <span>{state.error}</span>
             </div>
           )}
 
-          {success && (
+          {state.success && (
             <div className="flex items-center gap-2 rounded-md bg-green-500/15 dark:bg-green-500/25 p-3 text-sm text-green-600 dark:text-green-400">
               <IconCheck size={18} />
               <span>הסיסמה שונתה בהצלחה! חוזר...</span>
@@ -92,10 +97,9 @@ export default function ChangePasswordPage() {
             <Input
               id="password"
               type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              value={state.password}
+              onChange={(e) => updateState({ password: e.target.value })}
               required
-              autoFocus
               autoComplete="new-password"
             />
           </div>
@@ -105,8 +109,8 @@ export default function ChangePasswordPage() {
             <Input
               id="confirmPassword"
               type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
+              value={state.confirmPassword}
+              onChange={(e) => updateState({ confirmPassword: e.target.value })}
               required
               autoComplete="new-password"
             />
@@ -117,12 +121,12 @@ export default function ChangePasswordPage() {
               type="button"
               variant="outline"
               onClick={() => navigate(-1)}
-              disabled={isLoading}
+              disabled={state.isLoading}
             >
               ביטול
             </Button>
-            <Button type="submit" disabled={isLoading || success}>
-              {isLoading && (
+            <Button type="submit" disabled={state.isLoading || state.success}>
+              {state.isLoading && (
                 <IconLoader className="ml-2 h-4 w-4 animate-spin" />
               )}
               שנה סיסמה

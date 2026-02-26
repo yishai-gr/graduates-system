@@ -17,7 +17,7 @@ import {
   IconPhone,
 } from "@tabler/icons-react";
 import { ProfileCompletion } from "./ProfileCompletion";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import type { PanInfo } from "framer-motion";
 
 interface GraduateMobileCardProps {
@@ -82,7 +82,7 @@ export const GraduateMobileCard = memo(function GraduateMobileCard({
         </div>
       )}
 
-      <motion.div
+      <m.div
         drag="x"
         dragConstraints={{ left: 0, right: 0 }}
         dragElastic={{ left: canEdit ? 0.2 : 0, right: canDelete ? 0.2 : 0 }}
@@ -165,7 +165,7 @@ export const GraduateMobileCard = memo(function GraduateMobileCard({
             </DropdownMenu>
           </div>
         </Card>
-      </motion.div>
+      </m.div>
     </div>
   );
 });

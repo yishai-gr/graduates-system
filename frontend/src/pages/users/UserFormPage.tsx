@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, Navigate } from "react-router";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { usersService } from "@/services/usersService";
@@ -27,52 +27,60 @@ export default function UserFormPage() {
   const { isSuperAdmin } = usePermissions();
   useDocumentTitle(id ? "עריכת משתמש" : "הוספת משתמש");
 
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState<Role>("shiur_manager");
-  const [shiurs, setShiurs] = useState<string[]>([]);
+  const [state, setState] = useState({
+    formData: {
+      firstName: "",
+      lastName: "",
+      email: "",
+      role: "shiur_manager" as Role,
+      shiurs: [] as string[],
+    },
+    isLoading: false,
+    initialLoading: !!id,
+    error: "",
+  });
 
-  const [isLoading, setIsLoading] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(!!id);
-  const [error, setError] = useState("");
+  const updateState = (updates: Partial<typeof state>) => {
+    setState((prev) => ({ ...prev, ...updates }));
+  };
+
+  // Redirect logic moved to bottom
 
   useEffect(() => {
-    // Redirect if not admin
-    if (!isSuperAdmin) {
-      navigate("/unauthorized"); // or back
-      return;
-    }
-
     if (id) {
-      setInitialLoading(true);
+      updateState({ initialLoading: true });
       usersService
         .getUserById(id)
         .then((user) => {
-          setFirstName(user.firstName);
-          setLastName(user.lastName);
-          setEmail(user.email);
-          setRole(user.role);
-          setShiurs(user.shiurs || []);
+          updateState({
+            formData: {
+              firstName: user.firstName,
+              lastName: user.lastName,
+              email: user.email,
+              role: user.role,
+              shiurs: user.shiurs || [],
+            },
+            initialLoading: false,
+          });
         })
         .catch((err) => {
           console.error(err);
-          setError("לא ניתן לטעון את פרטי המשתמש");
-        })
-        .finally(() => {
-          setInitialLoading(false);
+          updateState({
+            error: "לא ניתן לטעון את פרטי המשתמש",
+            initialLoading: false,
+          });
         });
     } else {
-      setInitialLoading(false);
+      updateState({ initialLoading: false });
     }
-  }, [id, isSuperAdmin, navigate]);
+  }, [id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    setIsLoading(true);
+    updateState({ error: "", isLoading: true });
 
     try {
+      const { firstName, lastName, email, role, shiurs } = state.formData;
       if (!firstName || !lastName || !email) {
         throw new Error("נא למלא את כל השדות החובה");
       }
@@ -100,18 +108,28 @@ export default function UserFormPage() {
         navigate(`/users/${newId}/password`);
       }
     } catch (err: any) {
-      setError(err.message || "אירעה שגיאה בשמירת הנתונים");
+      updateState({
+        error: err.message || "אירעה שגיאה בשמירת הנתונים",
+        isLoading: false,
+      });
     } finally {
-      setIsLoading(false);
+      // If success, we navigated away. If error, we set loading false in catch.
+      // But purely for safety:
+      if (id) updateState({ isLoading: false });
     }
   };
 
-  if (initialLoading) {
+  if (state.initialLoading) {
     return (
       <div className="flex justify-center items-center h-64">
         <IconLoader className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
+  }
+
+  // Redirect if not admin
+  if (!isSuperAdmin) {
+    return <Navigate to="/unauthorized" />;
   }
 
   return (
@@ -127,10 +145,10 @@ export default function UserFormPage() {
 
       <div className="bg-card border rounded-lg p-6 shadow-sm">
         <form onSubmit={handleSubmit} className="grid gap-6">
-          {error && (
+          {state.error && (
             <div className="flex items-center gap-2 rounded-md bg-destructive/15 p-3 text-sm text-destructive">
               <IconAlertCircle size={18} />
-              <span>{error}</span>
+              <span>{state.error}</span>
             </div>
           )}
 
@@ -139,8 +157,12 @@ export default function UserFormPage() {
               <Label htmlFor="firstName">שם פרטי</Label>
               <Input
                 id="firstName"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
+                value={state.formData.firstName}
+                onChange={(e) =>
+                  updateState({
+                    formData: { ...state.formData, firstName: e.target.value },
+                  })
+                }
                 required
               />
             </div>
@@ -148,8 +170,12 @@ export default function UserFormPage() {
               <Label htmlFor="lastName">שם משפחה</Label>
               <Input
                 id="lastName"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
+                value={state.formData.lastName}
+                onChange={(e) =>
+                  updateState({
+                    formData: { ...state.formData, lastName: e.target.value },
+                  })
+                }
                 required
               />
             </div>
@@ -160,15 +186,26 @@ export default function UserFormPage() {
             <Input
               id="email"
               type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={state.formData.email}
+              onChange={(e) =>
+                updateState({
+                  formData: { ...state.formData, email: e.target.value },
+                })
+              }
               required
             />
           </div>
 
           <div className="grid gap-2">
             <Label htmlFor="role">תפקיד</Label>
-            <Select value={role} onValueChange={(val) => setRole(val as Role)}>
+            <Select
+              value={state.formData.role}
+              onValueChange={(val) =>
+                updateState({
+                  formData: { ...state.formData, role: val as Role },
+                })
+              }
+            >
               <SelectTrigger id="role" className="w-full">
                 <SelectValue placeholder="בחר תפקיד" />
               </SelectTrigger>
@@ -179,12 +216,16 @@ export default function UserFormPage() {
             </Select>
           </div>
 
-          {role === "shiur_manager" && (
+          {state.formData.role === "shiur_manager" && (
             <div className="grid gap-2 animate-in fade-in duration-300">
               <Label htmlFor="shiurs">מחזורים (שנים עבריות)</Label>
               <HebrewYearCombobox
-                value={shiurs}
-                onChange={setShiurs}
+                value={state.formData.shiurs}
+                onChange={(val) =>
+                  updateState({
+                    formData: { ...state.formData, shiurs: val },
+                  })
+                }
                 multiple
               />
               <p className="text-[0.8rem] text-muted-foreground">
@@ -198,12 +239,12 @@ export default function UserFormPage() {
               type="button"
               variant="outline"
               onClick={() => navigate("/users")}
-              disabled={isLoading}
+              disabled={state.isLoading}
             >
               ביטול
             </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading && (
+            <Button type="submit" disabled={state.isLoading}>
+              {state.isLoading && (
                 <IconLoader className="ml-2 h-4 w-4 animate-spin" />
               )}
               {id ? "שמור שינויים" : "צור משתמש"}
