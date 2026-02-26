@@ -3,7 +3,7 @@
         'name' => 'graduates-system/backend',
         'pretty_version' => 'dev-master',
         'version' => 'dev-master',
-        'reference' => 'd5bd4f7c72658270e304bdebff6d0afa040c5937',
+        'reference' => 'd400af153800170b1426ed17d3456ee3b47ecda4',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -31,7 +31,7 @@
         'graduates-system/backend' => array(
             'pretty_version' => 'dev-master',
             'version' => 'dev-master',
-            'reference' => 'd5bd4f7c72658270e304bdebff6d0afa040c5937',
+            'reference' => 'd400af153800170b1426ed17d3456ee3b47ecda4',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

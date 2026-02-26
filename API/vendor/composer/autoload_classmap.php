@@ -6,14 +6,6 @@ $vendorDir = dirname(__DIR__);
 $baseDir = dirname($vendorDir);
 
 return array(
-    'App\\Config\\Database' => $baseDir . '/src/Config/Database.php',
-    'App\\Config\\Permissions' => $baseDir . '/src/Config/Permissions.php',
-    'App\\Controllers\\AuthController' => $baseDir . '/src/Controllers/AuthController.php',
-    'App\\Controllers\\GraduatesController' => $baseDir . '/src/Controllers/GraduatesController.php',
-    'App\\Controllers\\ImportController' => $baseDir . '/src/Controllers/ImportController.php',
-    'App\\Controllers\\UserController' => $baseDir . '/src/Controllers/UserController.php',
-    'App\\Controllers\\ViewsController' => $baseDir . '/src/Controllers/ViewsController.php',
-    'App\\Middleware\\AuthMiddleware' => $baseDir . '/src/Middleware/AuthMiddleware.php',
     'Attribute' => $vendorDir . '/symfony/polyfill-php80/Resources/stubs/Attribute.php',
     'Complex\\Complex' => $vendorDir . '/markbaker/complex/classes/src/Complex.php',
     'Complex\\Exception' => $vendorDir . '/markbaker/complex/classes/src/Exception.php',

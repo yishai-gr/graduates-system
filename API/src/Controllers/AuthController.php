@@ -2,30 +2,22 @@
 
 namespace App\Controllers;
 
-use App\Config\Database;
 use App\Config\Permissions;
+use App\Core\Response;
 use Firebase\JWT\JWT;
 use PDO;
 
-class AuthController
+class AuthController extends BaseController
 {
-  private $db;
-
-  public function __construct()
-  {
-    $this->db = Database::getConnection();
-  }
 
   public function login()
   {
-    $data = json_decode(file_get_contents("php://input"), true);
+    $data = $this->getJsonInput();
     $email = $data['email'] ?? '';
     $password = $data['password'] ?? '';
 
     if (!$email || !$password) {
-      header('HTTP/1.1 400 Bad Request');
-      echo json_encode(['error' => ['message' => 'Email and password are required']]);
-      return;
+      Response::error('Email and password are required');
     }
 
     $stmt = $this->db->prepare("SELECT * FROM users WHERE email = :email");
@@ -38,20 +30,17 @@ class AuthController
     if (!$user || !password_verify($password, $user['password_hash'])) {
       // Setup fallback for initial super admin if the table is empty (Dev helper)
       // Remove this in production!
-      // TODO: Remove this backdoor in production
-      if ($email === 'admin@example.com' && $password === 'admin123' && !$user) {
-        // Return a fake admin token for bootstrapping
-        $this->issueToken([
-          'id' => 0,
-          'email' => 'admin@example.com',
-          'role' => 'super_admin'
-        ]);
-        return;
-      }
+      // if ($email === 'admin@example.com' && $password === 'admin123' && !$user) {
+      //   // Return a fake admin token for bootstrapping
+      //   $this->issueToken([
+      //     'id' => 0,
+      //     'email' => 'admin@example.com',
+      //     'role' => 'super_admin'
+      //   ]);
+      //   return;
+      // }
 
-      header('HTTP/1.1 401 Unauthorized');
-      echo json_encode(['error' => ['message' => 'Invalid credentials']]);
-      return;
+      Response::unauthorized('Invalid credentials');
     }
 
     $payload = [
@@ -82,7 +71,7 @@ class AuthController
 
     $jwt = JWT::encode($payload, $secretKey, 'HS256');
 
-    echo json_encode([
+    Response::json([
       'token' => $jwt,
       'user' => $userPayload
     ]);
@@ -99,6 +88,6 @@ class AuthController
     // Simpler: Just return the decoded token data from the request attribute if the router supports it.
     // Or re-decode:
     $user = \App\Middleware\AuthMiddleware::authenticate();
-    echo json_encode(['user' => $user]);
+    Response::json(['user' => $user]);
   }
 }

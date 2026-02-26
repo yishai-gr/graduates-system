@@ -2,22 +2,128 @@
 
 namespace App\Controllers;
 
-use App\Config\Database;
+use App\Core\Response;
 use PDO;
 
-class UserController
+class UserController extends BaseController
 {
-  private $db;
-
-  public function __construct()
-  {
-    $this->db = Database::getConnection();
-  }
 
   public function getAll()
   {
-    $sql = "SELECT id, email, first_name as firstName, last_name as lastName, role, shiurs_managed, password_changed as passwordChanged FROM users ORDER BY first_name ASC";
-    $stmt = $this->db->query($sql);
+    // Params
+    $page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
+    $limit = isset($_GET['limit']) ? (int) $_GET['limit'] : 20;
+    $search = $_GET['search'] ?? '';
+
+    $sort = $_GET['sort'] ?? 'first_name';
+    $order = strtolower($_GET['order'] ?? 'asc');
+    if (!in_array($order, ['asc', 'desc'])) {
+      $order = 'asc';
+    }
+
+    $sortMap = [
+      'fullName' => 'first_name',
+      'email' => 'email',
+      'role' => 'role',
+      'shiurs' => 'shiurs_managed'
+    ];
+    $sortField = $sortMap[$sort] ?? 'first_name';
+
+    $offset = ($page - 1) * $limit;
+
+    // Base Query
+    $sql = "SELECT id, email, first_name as firstName, last_name as lastName, role, shiurs_managed, password_changed as passwordChanged, shiurs_managed FROM users WHERE 1=1";
+    $params = [];
+
+    // Search Filter
+    if ($search) {
+      $words = array_filter(explode(" ", trim($search)));
+      foreach ($words as $index => $word) {
+        $paramKey = "search" . $index;
+        $sql .= " AND (first_name LIKE :search_a_$index OR last_name LIKE :search_b_$index OR email LIKE :search_c_$index)";
+        $params["search_a_$index"] = "%$word%";
+        $params["search_b_$index"] = "%$word%";
+        $params["search_c_$index"] = "%$word%";
+      }
+    }
+
+    // New API Filters
+    $filtersParam = $_GET['filters'] ?? '';
+    if ($filtersParam) {
+      $filters = json_decode($filtersParam, true);
+      if (is_array($filters)) {
+        foreach ($filters as $index => $filter) {
+          $id = $filter['id'] ?? '';
+          $value = $filter['value'] ?? '';
+          $paramKey = "filter_" . $index;
+
+          // Normalize value to array for uniform handling
+          $valueArr = is_array($value) ? $value : [$value];
+          $valueArr = array_filter($valueArr, fn($v) => $v !== '' && $v !== null);
+
+          if (empty($valueArr))
+            continue;
+
+          if ($id === 'role') {
+            $inParams = [];
+            foreach ($valueArr as $rIndex => $role) {
+              $rKey = "role_{$index}_{$rIndex}";
+              $inParams[] = ":$rKey";
+              $params[$rKey] = $role;
+            }
+            $sql .= " AND role IN (" . implode(',', $inParams) . ")";
+          } else if ($id === 'fullName') {
+            if (in_array('isEmpty', $valueArr)) {
+              $sql .= " AND (first_name IS NULL OR first_name = '' OR last_name IS NULL OR last_name = '')";
+            } else if (in_array('isNotEmpty', $valueArr)) {
+              $sql .= " AND (first_name IS NOT NULL AND first_name != '' AND last_name IS NOT NULL AND last_name != '')";
+            } else {
+              $v = reset($valueArr);
+              $sql .= " AND (first_name LIKE :$paramKey OR last_name LIKE :$paramKey)";
+              $params[$paramKey] = "%$v%";
+            }
+          } else if ($id === 'email') {
+            if (in_array('isEmpty', $valueArr)) {
+              $sql .= " AND (email IS NULL OR email = '')";
+            } else if (in_array('isNotEmpty', $valueArr)) {
+              $sql .= " AND (email IS NOT NULL AND email != '')";
+            } else {
+              $v = reset($valueArr);
+              $sql .= " AND email LIKE :$paramKey";
+              $params[$paramKey] = "%$v%";
+            }
+          } else if ($id === 'shiurs') {
+            if (in_array('isEmpty', $valueArr)) {
+              $sql .= " AND (shiurs_managed IS NULL OR shiurs_managed = '[]' OR shiurs_managed = '')";
+            } else if (in_array('isNotEmpty', $valueArr)) {
+              $sql .= " AND (shiurs_managed IS NOT NULL AND shiurs_managed != '[]' AND shiurs_managed != '')";
+            }
+          }
+        }
+      }
+    }
+
+    // Count Total
+    $countSql = str_replace(
+      "SELECT id, email, first_name as firstName, last_name as lastName, role, shiurs_managed, password_changed as passwordChanged, shiurs_managed",
+      "SELECT COUNT(*)",
+      $sql
+    );
+    $stmt = $this->db->prepare($countSql);
+    $stmt->execute($params);
+    $total = $stmt->fetchColumn();
+
+    // Order & Limit
+    $sql .= " ORDER BY $sortField $order LIMIT :limit OFFSET :offset";
+
+    $stmt = $this->db->prepare($sql);
+    foreach ($params as $key => $val) {
+      $stmt->bindValue($key, $val);
+    }
+    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+
+    $stmt->execute();
     $users = $stmt->fetchAll();
 
     // Decode shiurs_managed for each user
@@ -26,21 +132,11 @@ class UserController
       unset($user['shiurs_managed']);
     }
 
-    // Return in format expected by PaginatedResponse
-    // For now, assuming no server-side pagination for MVP or small user counts
-    // If we want pagination, we can parse $_GET['page'] etc. 
-    // But for simplicity let's return all and let frontend paginate or implement simple slicing here.
-    // The frontend expects { data: [], total: N, ... }
-
-    // Let's implement basic search/filter if needed, OR just return all for CLIENT-SIDE pagination for now 
-    // as the MockService was doing robust client-side filtering.
-    // Ideally we do it server side. Let's do a simple GetAll for now.
-
-    echo json_encode([
+    Response::json([
       'data' => $users,
-      'total' => count($users),
-      'page' => 1,
-      'pageSize' => count($users)
+      'total' => (int) $total,
+      'page' => $page,
+      'pageSize' => $limit
     ]);
   }
 
@@ -51,20 +147,18 @@ class UserController
     $user = $stmt->fetch();
 
     if (!$user) {
-      header('HTTP/1.1 404 Not Found');
-      echo json_encode(['error' => ['message' => 'User not found']]);
-      return;
+      Response::notFound('User not found');
     }
 
     $user['shiurs'] = json_decode($user['shiurs_managed'] ?? '[]');
     unset($user['shiurs_managed']);
 
-    echo json_encode($user);
+    Response::json($user);
   }
 
   public function create()
   {
-    $data = json_decode(file_get_contents("php://input"), true);
+    $data = $this->getJsonInput();
 
     $email = $data['email'] ?? '';
     $firstName = $data['firstName'] ?? '';
@@ -72,20 +166,23 @@ class UserController
     $role = $data['role'] ?? 'shiur_manager';
     $shiurs = $data['shiurs'] ?? [];
 
+    if ($role === 'shiur_manager' && !empty($shiurs)) {
+      foreach ($shiurs as $shiur) {
+        if (!$this->validateHebrewYear($shiur)) {
+          Response::validationError('shiurs', 'One or more years are invalid Hebrew years');
+        }
+      }
+    }
+
     if (!$email || !$firstName || !$lastName) {
-      header('HTTP/1.1 400 Bad Request');
-      echo json_encode(['error' => ['message' => 'Missing required fields']]);
-      return;
+      Response::error('Missing required fields');
     }
 
     // Check if email exists
     $stmt = $this->db->prepare("SELECT id FROM users WHERE email = ?");
     $stmt->execute([$email]);
     if ($stmt->fetch()) {
-      header('HTTP/1.1 400 Bad Request');
-      // frontend expects this structure for "Email already exists"
-      echo json_encode(['error' => ['message' => 'Email already exists']]);
-      return;
+      Response::error('Email already exists');
     }
 
     // Default password for new users
@@ -99,7 +196,7 @@ class UserController
       $stmt->execute([$email, $defaultPassword, $firstName, $lastName, $role, $shiursJson]);
       $id = $this->db->lastInsertId();
 
-      echo json_encode([
+      Response::json([
         'id' => $id,
         'email' => $email,
         'firstName' => $firstName,
@@ -109,14 +206,13 @@ class UserController
         'passwordChanged' => false
       ]);
     } catch (\PDOException $e) {
-      header('HTTP/1.1 500 Internal Server Error');
-      echo json_encode(['error' => ['message' => 'Database error: ' . $e->getMessage()]]);
+      Response::serverError('Database error: ' . $e->getMessage());
     }
   }
 
   public function update($id)
   {
-    $data = json_decode(file_get_contents("php://input"), true);
+    $data = $this->getJsonInput();
 
     // Fetch existing
     $stmt = $this->db->prepare("SELECT * FROM users WHERE id = ?");
@@ -124,9 +220,7 @@ class UserController
     $user = $stmt->fetch();
 
     if (!$user) {
-      header('HTTP/1.1 404 Not Found');
-      echo json_encode(['error' => ['message' => 'User not found']]);
-      return;
+      Response::notFound('User not found');
     }
 
     // Prepare updates
@@ -136,16 +230,29 @@ class UserController
     $lastName = $data['lastName'] ?? $user['last_name'];
     $email = $data['email'] ?? $user['email'];
     $role = $data['role'] ?? $user['role'];
-    $shiurs = isset($data['shiurs']) ? json_encode($data['shiurs']) : $user['shiurs_managed'];
+    $role = $data['role'] ?? $user['role'];
+
+    $shiurs = null;
+    if (isset($data['shiurs'])) {
+      $shiursArray = $data['shiurs'];
+      if ($role === 'shiur_manager' && !empty($shiursArray)) {
+        foreach ($shiursArray as $s) {
+          if (!$this->validateHebrewYear($s)) {
+            Response::validationError('shiurs', 'One or more years are invalid Hebrew years');
+          }
+        }
+      }
+      $shiurs = json_encode($shiursArray);
+    } else {
+      $shiurs = $user['shiurs_managed'];
+    }
 
     // Check email uniqueness if changed
     if ($email !== $user['email']) {
       $check = $this->db->prepare("SELECT id FROM users WHERE email = ? AND id != ?");
       $check->execute([$email, $id]);
       if ($check->fetch()) {
-        header('HTTP/1.1 400 Bad Request');
-        echo json_encode(['error' => ['message' => 'Email already exists']]);
-        return;
+        Response::error('Email already exists');
       }
     }
 
@@ -168,7 +275,7 @@ class UserController
       $stmt->execute($params);
 
       // Return updated
-      echo json_encode([
+      Response::json([
         'id' => $id,
         'email' => $email,
         'firstName' => $firstName,
@@ -178,8 +285,7 @@ class UserController
         'passwordChanged' => $password ? true : (bool) ($user['password_changed'] ?? false)
       ]);
     } catch (\PDOException $e) {
-      header('HTTP/1.1 500 Internal Server Error');
-      echo json_encode(['error' => ['message' => 'Database error']]);
+      Response::serverError('Database error');
     }
   }
 
@@ -190,8 +296,7 @@ class UserController
       $stmt->execute([$id]);
       http_response_code(204);
     } catch (\PDOException $e) {
-      header('HTTP/1.1 500 Internal Server Error');
-      echo json_encode(['error' => ['message' => 'Could not delete user']]);
+      Response::serverError('Could not delete user');
     }
   }
 }
