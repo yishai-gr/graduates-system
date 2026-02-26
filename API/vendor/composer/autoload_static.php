@@ -50,6 +50,10 @@ class ComposerStaticInitc289ce77fb261d1bd5cf63c4575dbf5d
             'Composer\\Pcre\\' => 14,
             'Complex\\' => 8,
         ),
+        'A' =>
+        array (
+            'App\\' => 4,
+        ),
     );
 
     public static $prefixDirsPsr4 = array (
@@ -105,9 +109,26 @@ class ComposerStaticInitc289ce77fb261d1bd5cf63c4575dbf5d
         array (
             0 => __DIR__ . '/..' . '/markbaker/complex/classes/src',
         ),
+        'App\\' =>
+        array (
+            0 => __DIR__ . '/../..' . '/src',
+        ),
     );
 
     public static $classMap = array (
+        'App\\Config\\Database' => __DIR__ . '/../..' . '/src/Config/Database.php',
+        'App\\Config\\Permissions' => __DIR__ . '/../..' . '/src/Config/Permissions.php',
+        'App\\Controllers\\AuthController' => __DIR__ . '/../..' . '/src/Controllers/AuthController.php',
+        'App\\Controllers\\BaseController' => __DIR__ . '/../..' . '/src/Controllers/BaseController.php',
+        'App\\Controllers\\GraduatesController' => __DIR__ . '/../..' . '/src/Controllers/GraduatesController.php',
+        'App\\Controllers\\ImportController' => __DIR__ . '/../..' . '/src/Controllers/ImportController.php',
+        'App\\Controllers\\UserController' => __DIR__ . '/../..' . '/src/Controllers/UserController.php',
+        'App\\Controllers\\ViewsController' => __DIR__ . '/../..' . '/src/Controllers/ViewsController.php',
+        'App\\Core\\Response' => __DIR__ . '/../..' . '/src/Core/Response.php',
+        'App\\Core\\Router' => __DIR__ . '/../..' . '/src/Core/Router.php',
+        'App\\Middleware\\AdminMiddleware' => __DIR__ . '/../..' . '/src/Middleware/AdminMiddleware.php',
+        'App\\Middleware\\AuthMiddleware' => __DIR__ . '/../..' . '/src/Middleware/AuthMiddleware.php',
+        'App\\Middleware\\MiddlewareInterface' => __DIR__ . '/../..' . '/src/Middleware/MiddlewareInterface.php',
         'Attribute' => __DIR__ . '/..' . '/symfony/polyfill-php80/Resources/stubs/Attribute.php',
         'Complex\\Complex' => __DIR__ . '/..' . '/markbaker/complex/classes/src/Complex.php',
         'Complex\\Exception' => __DIR__ . '/..' . '/markbaker/complex/classes/src/Exception.php',
